@@ -9,20 +9,13 @@ import { cn } from '@/lib/utils'
 import type { LedgerEntry, Order } from '@/lib/types'
 import { updateLocalOrder, upsertLocalOrder } from '@/lib/localOrders'
 import { formatBRL } from '@/lib/format'
+import { orderStatusLabel, chargeStatusLabel, ledgerEntryLabel } from '@/lib/labels'
 
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/components/ui/use-toast'
-
-const statusMap: Record<string, string> = {
-  AWAITING_PAYMENT: 'Aguardando pagamento',
-  PAID_IN_ESCROW: 'Em custódia',
-  RELEASED: 'Liberado',
-  REFUNDED: 'Reembolsado',
-  CANCELED: 'Cancelado'
-}
 
 type UIStatus = 'idle' | 'processing' | 'approved' | 'released' | 'refunded' | 'error'
 
@@ -178,7 +171,7 @@ export default function WalletPageClient({ initialOrderId }: { initialOrderId: s
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Status</p>
-              <Badge variant={variant}>{status ? (statusMap[status] || status) : '-'}</Badge>
+              <Badge variant={variant}>{status ? orderStatusLabel(status) : '-'}</Badge>
             </div>
             <div className="text-3xl font-bold tracking-tight">{formatBRL(orderQuery.data.amount_cents)}</div>
           </div>
@@ -188,7 +181,7 @@ export default function WalletPageClient({ initialOrderId }: { initialOrderId: s
           <div className="grid grid-cols-2 gap-3">
             <div className="ventra-card p-4">
               <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">Charge</p>
-              <p className="mt-2 text-sm font-semibold">{charge?.status ?? '-'}</p>
+              <p className="mt-2 text-sm font-semibold">{charge?.status ? chargeStatusLabel(charge.status) : '-'}</p>
             </div>
             <div className="ventra-card p-4">
               <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">Expira</p>
@@ -286,15 +279,18 @@ export default function WalletPageClient({ initialOrderId }: { initialOrderId: s
         <section className="space-y-3">
           <p className="text-xs uppercase tracking-[0.32em] text-muted-foreground">Ledger</p>
           <Card className="p-5 space-y-3">
-            {ledgerQuery.data.map((entry) => (
-              <div key={entry.id} className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold">{String(entry.type).replace(/_/g, ' ')}</p>
-                  <p className="text-xs text-muted-foreground">{entry.account}</p>
+            {ledgerQuery.data.map((entry) => {
+              const { title } = ledgerEntryLabel(entry.type)
+              return (
+                <div key={entry.id} className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold">{title}</p>
+                    <p className="text-xs text-muted-foreground">{entry.account}</p>
+                  </div>
+                  <p className="text-sm font-semibold">{formatBRL(entry.amount_cents)}</p>
                 </div>
-                <p className="text-sm font-semibold">{formatBRL(entry.amount_cents)}</p>
-              </div>
-            ))}
+              )
+            })}
           </Card>
         </section>
       )}
