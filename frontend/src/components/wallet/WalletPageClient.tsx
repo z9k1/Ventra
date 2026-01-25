@@ -22,13 +22,13 @@ export default function WalletPageClient({ initialOrderId }: { initialOrderId: s
   const { toast } = useToast()
 
   const orderQuery = useQuery({
-    queryKey: ['wallet-order', orderId],
+    queryKey: ['deposit', orderId],
     queryFn: () => apiRequest<Order>(`/orders/${orderId}`),
     enabled: Boolean(orderId)
   })
 
   const ledgerQuery = useQuery({
-    queryKey: ['wallet-ledger', orderId],
+    queryKey: ['ledger', orderId],
     queryFn: () => apiRequest<LedgerEntry[]>(`/orders/${orderId}/ledger`),
     enabled: Boolean(orderId)
   })
@@ -74,9 +74,9 @@ export default function WalletPageClient({ initialOrderId }: { initialOrderId: s
         await apiRequest(`/orders/${orderId}/refund`, { method: 'POST', action: 'refund' })
       }
 
-      await queryClient.invalidateQueries({ queryKey: ['wallet-order', orderId] })
-      await queryClient.invalidateQueries({ queryKey: ['wallet-ledger', orderId] })
-      await queryClient.invalidateQueries({ queryKey: ['balance'] })
+      await queryClient.invalidateQueries({ queryKey: ['deposit', orderId] })
+      await queryClient.invalidateQueries({ queryKey: ['ledger', orderId] })
+      await queryClient.invalidateQueries({ queryKey: ['wallet', 'balances'] })
 
       const updated = await apiRequest<Order>(`/orders/${orderId}`)
       updateLocalOrder(orderId, { lastKnownStatus: updated.status, chargeId: updated.charge?.id })
@@ -110,7 +110,7 @@ export default function WalletPageClient({ initialOrderId }: { initialOrderId: s
             className="w-full rounded-[16px] border border-border bg-black/20 px-4 py-3"
           />
         </div>
-        <Button size="icon" variant="outline" type="button" onClick={() => queryClient.invalidateQueries({ queryKey: ['wallet-order', orderId] })}>
+        <Button size="icon" variant="outline" type="button" onClick={() => queryClient.invalidateQueries({ queryKey: ['deposit', orderId] })}>
           <Search size={18} />
         </Button>
       </div>

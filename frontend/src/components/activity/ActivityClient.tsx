@@ -23,7 +23,7 @@ export default function ActivityClient() {
 
   useQueries({
     queries: orders.map((o) => ({
-      queryKey: ['activity-ledger', o.orderId],
+      queryKey: ['ledger', o.orderId],
       queryFn: () => apiRequest<LedgerEntry[]>(`/orders/${o.orderId}/ledger`),
       enabled: Boolean(o.orderId),
       onSuccess: (data: LedgerEntry[]) => {

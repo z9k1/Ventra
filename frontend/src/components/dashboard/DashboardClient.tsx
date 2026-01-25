@@ -25,14 +25,14 @@ export default function DashboardClient() {
   }, [refreshKey])
 
   const balanceQuery = useQuery({
-    queryKey: ['balance'],
+    queryKey: ['wallet', 'balances'],
     queryFn: () => apiRequest<Balance>('/balance'),
     staleTime: 10_000
   })
 
   useQueries({
     queries: localOrders.map((order) => ({
-      queryKey: ['order', order.orderId],
+      queryKey: ['deposit', order.orderId],
       queryFn: () => apiRequest<Order>(`/orders/${order.orderId}`),
       enabled: Boolean(order.orderId),
       staleTime: 8_000,
