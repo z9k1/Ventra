@@ -129,7 +129,11 @@ export function NewDepositDialog({ onCreated }: { onCreated: () => void }) {
       setStep({ key: 'pix', order: updated, charge: updated.charge ?? step.charge })
       onCreated()
 
-      toast({ title: 'Pagamento confirmado', description: 'Ordem em custodia.', variant: 'success' })
+      toast({
+        title: 'Sucesso',
+        description: 'Pagamento confirmado. Valor em custódia.',
+        variant: 'success'
+      })
     } catch (error: any) {
       toast({ title: 'Erro', description: error?.message || 'Falha ao simular pagamento', variant: 'destructive' })
     } finally {
@@ -149,7 +153,11 @@ export function NewDepositDialog({ onCreated }: { onCreated: () => void }) {
       updateLocalOrder(step.order.id, { lastKnownStatus: updated.status })
       setStep({ key: 'pix', order: updated, charge: step.charge })
       onCreated()
-      toast({ title: 'Liberado', description: 'Pagamento liberado ao merchant.', variant: 'success' })
+      toast({
+        title: 'Sucesso',
+        description: 'Valor liberado para o saldo disponível.',
+        variant: 'success'
+      })
     } catch (error: any) {
       toast({ title: 'Erro', description: error?.message || 'Falha ao liberar', variant: 'destructive' })
     } finally {
@@ -169,7 +177,11 @@ export function NewDepositDialog({ onCreated }: { onCreated: () => void }) {
       updateLocalOrder(step.order.id, { lastKnownStatus: updated.status })
       setStep({ key: 'pix', order: updated, charge: step.charge })
       onCreated()
-      toast({ title: 'Reembolsado', description: 'Pagamento devolvido ao customer.', variant: 'success' })
+      toast({
+        title: 'Sucesso',
+        description: 'Valor reembolsado ao cliente.',
+        variant: 'success'
+      })
     } catch (error: any) {
       toast({ title: 'Erro', description: error?.message || 'Falha ao reembolsar', variant: 'destructive' })
     } finally {
@@ -246,33 +258,45 @@ export function NewDepositDialog({ onCreated }: { onCreated: () => void }) {
                 className="w-full min-h-[120px] rounded-[16px] border border-border bg-black/20 p-3 text-xs leading-relaxed"
               />
 
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => {
-                    navigator.clipboard.writeText(step.charge.pix_emv)
-                    toast({ title: 'Copiado', description: 'EMV copiado para a área de transferência.' })
-                  }}
-                >
-                  <Copy size={16} className="mr-2" /> Copy
-                </Button>
-                <Button type="button" className="flex-1" onClick={simulatePaid} disabled={busy}>
-                  {busy ? <Loader2 className="animate-spin" size={18} /> : 'Simular pagamento'}
-                </Button>
-              </div>
+              {step.order.status === 'AWAITING_PAYMENT' && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1"
+                    disabled={busy}
+                    onClick={() => {
+                      navigator.clipboard.writeText(step.charge.pix_emv)
+                      toast({ title: 'Copiado', description: 'EMV copiado para a área de transferência.' })
+                    }}
+                  >
+                    <Copy size={16} className="mr-2" /> Copiar
+                  </Button>
+                  <Button type="button" className="flex-1" onClick={simulatePaid} disabled={busy}>
+                    {busy ? 'Processando...' : 'Simular pagamento'}
+                  </Button>
+                </div>
+              )}
 
-              <Separator className="my-2" />
+              {canActions && (
+                <>
+                  <Separator className="my-2" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button type="button" variant="outline" disabled={busy} onClick={refund}>
+                      Reembolsar
+                    </Button>
+                    <Button type="button" disabled={busy} onClick={release}>
+                      Liberar
+                    </Button>
+                  </div>
+                </>
+              )}
 
-              <div className="grid grid-cols-2 gap-2">
-                <Button type="button" variant="outline" disabled={!canActions || busy} onClick={refund}>
-                  Reembolsar
-                </Button>
-                <Button type="button" disabled={!canActions || busy} onClick={release}>
-                  Liberar
-                </Button>
-              </div>
+              {['RELEASED', 'REFUNDED', 'CANCELED'].includes(step.order.status) && (
+                <div className="ventra-card p-3 text-center text-sm font-medium text-muted-foreground">
+                  Ordem finalizada
+                </div>
+              )}
 
               <p className="text-xs text-muted-foreground">
                 Status: <span className="text-foreground font-semibold">{step.order.status}</span>

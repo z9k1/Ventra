@@ -76,11 +76,17 @@ export default function WalletPageClient({ initialOrderId }: { initialOrderId: s
 
       await queryClient.invalidateQueries({ queryKey: ['wallet-order', orderId] })
       await queryClient.invalidateQueries({ queryKey: ['wallet-ledger', orderId] })
+      await queryClient.invalidateQueries({ queryKey: ['balance'] })
 
       const updated = await apiRequest<Order>(`/orders/${orderId}`)
       updateLocalOrder(orderId, { lastKnownStatus: updated.status, chargeId: updated.charge?.id })
 
-      toast({ title: 'Sucesso', description: 'Acao executada.', variant: 'success' })
+      let successMsg = 'Ação executada.'
+      if (kind === 'simulate') successMsg = 'Pagamento confirmado. Valor em custódia.'
+      if (kind === 'release') successMsg = 'Valor liberado para o saldo disponível.'
+      if (kind === 'refund') successMsg = 'Valor reembolsado ao cliente.'
+
+      toast({ title: 'Sucesso', description: successMsg, variant: 'success' })
     } catch (error: any) {
       toast({ title: 'Erro', description: error?.message || 'Falha na acao', variant: 'destructive' })
     } finally {
@@ -153,11 +159,11 @@ export default function WalletPageClient({ initialOrderId }: { initialOrderId: s
           <div className="grid grid-cols-2 gap-2">
             {status === 'AWAITING_PAYMENT' && (
               <>
-                <Button variant="outline" onClick={handleCopyPix}>
+                <Button variant="outline" disabled={busy} onClick={handleCopyPix}>
                   Copiar Pix
                 </Button>
                 <Button disabled={busy || !charge || charge.status !== 'PENDING'} onClick={() => runAction('simulate')}>
-                  {busy ? <Loader2 className="animate-spin" size={16} /> : 'Simular pagamento'}
+                  {busy ? 'Processando...' : 'Simular pagamento'}
                 </Button>
               </>
             )}

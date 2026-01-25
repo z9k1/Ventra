@@ -45,7 +45,10 @@ export default function DashboardClient() {
     }))
   })
 
-  const onCreated = () => setRefreshKey((prev) => prev + 1)
+  const onCreated = () => {
+    setRefreshKey((prev) => prev + 1)
+    balanceQuery.refetch()
+  }
 
   return (
     <div className="space-y-6">
