@@ -1,22 +1,21 @@
 import './globals.css'
-import { Providers } from '@/components/common/Providers'
-import { Shell } from '@/components/common/Shell'
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 
+import { Providers } from '@/components/app/Providers'
+import { AppShell } from '@/components/app/AppShell'
+
 export const metadata: Metadata = {
   title: 'Ventra Escrow Pix',
-  description: 'Painel Ventra-style para Escrow Pix API'
+  description: 'Ventra style UI for Escrow Pix API'
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="pt-BR">
-      <body className="bg-backdrop text-textPrimary">
+    <html lang="pt-BR" className="dark">
+      <body className="bg-background text-foreground">
         <Providers>
-          <div className="main-shell">
-            <Shell>{children}</Shell>
-          </div>
+          <AppShell>{children}</AppShell>
         </Providers>
       </body>
     </html>
