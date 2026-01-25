@@ -22,8 +22,9 @@ def test_ledger_append_only_and_balance(client, db_session):
     balance_res = client.get("/balance")
     assert balance_res.status_code == 200
     balance = balance_res.json()
-    assert balance["merchant_balance"] == 1500
-    assert balance["escrow_balance"] == 0
+    assert balance["available_balance_cents"] == 1500
+    assert balance["escrow_balance_cents"] == 0
+    assert balance["total_balance_cents"] == 1500
 
     ledger_res = client.get(f"/orders/{order_id}/ledger")
     assert ledger_res.status_code == 200

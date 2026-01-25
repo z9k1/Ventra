@@ -25,8 +25,9 @@ export type Order = {
 }
 
 export type Balance = {
-  merchant_balance: number
-  escrow_balance: number
+  available_balance_cents: number
+  escrow_balance_cents: number
+  total_balance_cents: number
 }
 
 export type LedgerEntry = {

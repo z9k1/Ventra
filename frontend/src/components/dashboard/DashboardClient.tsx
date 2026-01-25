@@ -70,8 +70,9 @@ export default function DashboardClient() {
       )}
 
       <BalanceCards
-        merchant={balanceQuery.data?.merchant_balance ?? 0}
-        escrow={balanceQuery.data?.escrow_balance ?? 0}
+        available={balanceQuery.data?.available_balance_cents ?? 0}
+        escrow={balanceQuery.data?.escrow_balance_cents ?? 0}
+        total={balanceQuery.data?.total_balance_cents ?? 0}
       />
 
       <NewDepositDialog onCreated={onCreated} />

@@ -7,6 +7,8 @@ os.environ.setdefault("ENV", "sandbox")
 import pytest
 from fastapi.testclient import TestClient
 
+from unittest.mock import patch
+
 from app.api import deps
 from app.db import Base, SessionLocal, engine
 from app.main import app
@@ -32,9 +34,10 @@ app.dependency_overrides[deps.db_session] = override_db_session
 
 @pytest.fixture()
 def client():
-    with TestClient(app) as client:
-        client.headers.update({"X-API-KEY": "test-key"})
-        yield client
+    with patch("app.services.webhooks_service.send_webhook"):
+        with TestClient(app) as client:
+            client.headers.update({"X-API-KEY": "test-key"})
+            yield client
 
 
 @pytest.fixture()

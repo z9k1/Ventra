@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Loader2, Search } from 'lucide-react'
+import { CheckCircle2, Loader2, Search } from 'lucide-react'
 
 import { apiRequest } from '@/lib/api'
+import { cn } from '@/lib/utils'
 import type { LedgerEntry, Order } from '@/lib/types'
 import { updateLocalOrder, upsertLocalOrder } from '@/lib/localOrders'
 import { formatBRL } from '@/lib/format'
@@ -49,6 +50,13 @@ export default function WalletPageClient({ initialOrderId }: { initialOrderId: s
   const charge = orderQuery.data?.charge
 
   const variant = status === 'RELEASED' ? 'success' : 'neutral'
+
+  const handleCopyPix = () => {
+    if (charge?.pix_emv) {
+      navigator.clipboard.writeText(charge.pix_emv)
+      toast({ title: 'Copiado', description: 'Código Pix copiado.' })
+    }
+  }
 
   const runAction = async (kind: 'simulate' | 'release' | 'refund') => {
     if (!orderQuery.data) return
@@ -134,7 +142,7 @@ export default function WalletPageClient({ initialOrderId }: { initialOrderId: s
             </div>
           </div>
 
-          {charge?.pix_emv && (
+          {charge?.pix_emv && status === 'AWAITING_PAYMENT' && (
             <textarea
               readOnly
               value={charge.pix_emv}
@@ -142,17 +150,75 @@ export default function WalletPageClient({ initialOrderId }: { initialOrderId: s
             />
           )}
 
-          <div className="grid grid-cols-3 gap-2">
-            <Button disabled={busy || !charge || charge.status !== 'PENDING'} onClick={() => runAction('simulate')}>
-              {busy ? <Loader2 className="animate-spin" size={16} /> : 'Simular'}
-            </Button>
-            <Button variant="outline" disabled={busy || status !== 'PAID_IN_ESCROW'} onClick={() => runAction('refund')}>
-              Reembolsar
-            </Button>
-            <Button disabled={busy || status !== 'PAID_IN_ESCROW'} onClick={() => runAction('release')}>
-              Liberar
-            </Button>
+          <div className="grid grid-cols-2 gap-2">
+            {status === 'AWAITING_PAYMENT' && (
+              <>
+                <Button variant="outline" onClick={handleCopyPix}>
+                  Copiar Pix
+                </Button>
+                <Button disabled={busy || !charge || charge.status !== 'PENDING'} onClick={() => runAction('simulate')}>
+                  {busy ? <Loader2 className="animate-spin" size={16} /> : 'Simular pagamento'}
+                </Button>
+              </>
+            )}
+
+            {status === 'PAID_IN_ESCROW' && (
+              <>
+                <Button variant="outline" disabled={busy} onClick={() => runAction('refund')}>
+                  Reembolsar
+                </Button>
+                <Button disabled={busy} onClick={() => runAction('release')}>
+                  Liberar
+                </Button>
+              </>
+            )}
+
+            {status && ['RELEASED', 'REFUNDED', 'CANCELED'].includes(status) && (
+              <div className="col-span-2 ventra-card p-3 text-center text-sm font-medium text-muted-foreground">
+                Ordem finalizada
+              </div>
+            )}
           </div>
+
+          {status && (
+            <div className="pt-2">
+              <div className="flex items-center justify-between px-1">
+                {[
+                  { label: 'Criada', done: true },
+                  { label: 'Paga', done: ['PAID_IN_ESCROW', 'RELEASED', 'REFUNDED'].includes(status) },
+                  { label: 'Em custódia', done: ['PAID_IN_ESCROW', 'RELEASED', 'REFUNDED'].includes(status) },
+                  {
+                    label: status === 'REFUNDED' ? 'Reembolsada' : 'Liberada',
+                    done: ['RELEASED', 'REFUNDED'].includes(status)
+                  }
+                ].map((step, i, arr) => (
+                  <div key={i} className="flex flex-col items-center gap-2">
+                    <div className="flex items-center">
+                      <div
+                        className={cn(
+                          'h-2 w-2 rounded-full',
+                          step.done ? 'bg-accent' : 'bg-muted'
+                        )}
+                      />
+                      {i < arr.length - 1 && (
+                        <div
+                          className={cn('h-[1px] w-6 sm:w-12 mx-1', step.done && arr[i + 1].done ? 'bg-accent' : 'bg-muted')}
+                        />
+                      )}
+                    </div>
+                    <span
+                      className={cn(
+                        'text-[10px] uppercase tracking-tighter font-medium',
+                        step.done ? 'text-foreground' : 'text-muted-foreground'
+                      )}
+                    >
+                      {step.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </Card>
       )}
 
