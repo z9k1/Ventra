@@ -28,8 +28,9 @@ class LedgerEntryResponse(BaseModel):
 
 
 class BalanceResponse(BaseModel):
-    merchant_balance: int
-    escrow_balance: int
+    available_balance_cents: int
+    escrow_balance_cents: int
+    total_balance_cents: int
 
 
 @router.get("/orders/{order_id}/ledger", response_model=list[LedgerEntryResponse])
@@ -43,6 +44,10 @@ def list_ledger(order_id: UUID, db: Session = Depends(db_session)):
 
 @router.get("/balance", response_model=BalanceResponse)
 def get_balance(db: Session = Depends(db_session)):
-    merchant = ledger_repo.get_balance_for_account(db, LedgerAccount.MERCHANT.value)
+    available = ledger_repo.get_balance_for_account(db, LedgerAccount.MERCHANT.value)
     escrow = ledger_repo.get_balance_for_account(db, LedgerAccount.ESCROW.value)
-    return BalanceResponse(merchant_balance=merchant, escrow_balance=escrow)
+    return BalanceResponse(
+        available_balance_cents=available,
+        escrow_balance_cents=escrow,
+        total_balance_cents=available + escrow,
+    )

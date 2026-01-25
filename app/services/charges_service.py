@@ -62,7 +62,11 @@ def simulate_paid(db: Session, charge_id, background_tasks=None):
         raise InvalidStateError("Charge not pending")
 
     now = _now_utc()
-    if now > charge.expires_at:
+    expires_at = charge.expires_at
+    if expires_at.tzinfo is None and now.tzinfo is not None:
+        now = now.replace(tzinfo=None)
+
+    if now > expires_at:
         ensure_charge_transition(ChargeStatus.PENDING, ChargeStatus.EXPIRED)
         charge.status = ChargeStatus.EXPIRED.value
         return order, charge, True
