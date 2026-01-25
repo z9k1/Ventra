@@ -58,23 +58,26 @@ def create_order(
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ):
     endpoint = request.url.path
-    existing = None
-    request_hash_value = None
-    if idempotency_key:
-        try:
-            existing, request_hash_value = check_idempotency(
-                db,
-                key=idempotency_key,
-                endpoint=endpoint,
-                payload=body.model_dump(),
-            )
-        except DomainError as exc:
-            raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
-        if existing:
-            return JSONResponse(content=existing.response_json, status_code=existing.status_code)
-
     try:
         with db.begin():
+            # SQLAlchemy 2.x autobegins transactions on first query; do the
+            # idempotency lookup inside this explicit transaction block to avoid
+            # "A transaction is already begun on this Session."
+            existing = None
+            request_hash_value = None
+            if idempotency_key:
+                try:
+                    existing, request_hash_value = check_idempotency(
+                        db,
+                        key=idempotency_key,
+                        endpoint=endpoint,
+                        payload=body.model_dump(),
+                    )
+                except DomainError as exc:
+                    raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+                if existing:
+                    return JSONResponse(content=existing.response_json, status_code=existing.status_code)
+
             order = orders_service.create_order(db, amount_cents=body.amount_cents, currency=body.currency)
             response_json = _serialize_order(order)
             if idempotency_key and request_hash_value:

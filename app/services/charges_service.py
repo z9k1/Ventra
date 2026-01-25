@@ -36,6 +36,9 @@ def create_pix_charge(db: Session, order_id, background_tasks=None):
         pix_emv=pix_emv,
         txid=txid,
     )
+    # Ensure INSERT runs so charge.id is available for webhook payloads.
+    db.flush()
+    db.refresh(charge)
 
     webhooks_service.emit_event(
         db,

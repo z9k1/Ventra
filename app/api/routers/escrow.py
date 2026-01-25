@@ -40,23 +40,23 @@ def release_order(
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ):
     endpoint = request.url.path
-    existing = None
-    request_hash_value = None
-    if idempotency_key:
-        try:
-            existing, request_hash_value = check_idempotency(
-                db,
-                key=idempotency_key,
-                endpoint=endpoint,
-                payload={},
-            )
-        except DomainError as exc:
-            raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
-        if existing:
-            return JSONResponse(content=existing.response_json, status_code=existing.status_code)
-
     try:
         with db.begin():
+            existing = None
+            request_hash_value = None
+            if idempotency_key:
+                try:
+                    existing, request_hash_value = check_idempotency(
+                        db,
+                        key=idempotency_key,
+                        endpoint=endpoint,
+                        payload={},
+                    )
+                except DomainError as exc:
+                    raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+                if existing:
+                    return JSONResponse(content=existing.response_json, status_code=existing.status_code)
+
             order = escrow_service.release_order(db, order_id=order_id, background_tasks=background_tasks)
             response_json = _serialize_order(order)
             if idempotency_key and request_hash_value:
@@ -83,23 +83,23 @@ def refund_order(
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ):
     endpoint = request.url.path
-    existing = None
-    request_hash_value = None
-    if idempotency_key:
-        try:
-            existing, request_hash_value = check_idempotency(
-                db,
-                key=idempotency_key,
-                endpoint=endpoint,
-                payload={},
-            )
-        except DomainError as exc:
-            raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
-        if existing:
-            return JSONResponse(content=existing.response_json, status_code=existing.status_code)
-
     try:
         with db.begin():
+            existing = None
+            request_hash_value = None
+            if idempotency_key:
+                try:
+                    existing, request_hash_value = check_idempotency(
+                        db,
+                        key=idempotency_key,
+                        endpoint=endpoint,
+                        payload={},
+                    )
+                except DomainError as exc:
+                    raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+                if existing:
+                    return JSONResponse(content=existing.response_json, status_code=existing.status_code)
+
             order = escrow_service.refund_order(db, order_id=order_id, background_tasks=background_tasks)
             response_json = _serialize_order(order)
             if idempotency_key and request_hash_value:

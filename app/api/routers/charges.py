@@ -61,23 +61,23 @@ def create_pix_charge(
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ):
     endpoint = request.url.path
-    existing = None
-    request_hash_value = None
-    if idempotency_key:
-        try:
-            existing, request_hash_value = check_idempotency(
-                db,
-                key=idempotency_key,
-                endpoint=endpoint,
-                payload={},
-            )
-        except DomainError as exc:
-            raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
-        if existing:
-            return JSONResponse(content=existing.response_json, status_code=existing.status_code)
-
     try:
         with db.begin():
+            existing = None
+            request_hash_value = None
+            if idempotency_key:
+                try:
+                    existing, request_hash_value = check_idempotency(
+                        db,
+                        key=idempotency_key,
+                        endpoint=endpoint,
+                        payload={},
+                    )
+                except DomainError as exc:
+                    raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+                if existing:
+                    return JSONResponse(content=existing.response_json, status_code=existing.status_code)
+
             charge = charges_service.create_pix_charge(db, order_id=order_id, background_tasks=background_tasks)
             response_json = _serialize_charge(charge)
             if idempotency_key and request_hash_value:
@@ -107,23 +107,23 @@ def simulate_paid(
         raise HTTPException(status_code=404, detail="Not found")
 
     endpoint = request.url.path
-    existing = None
-    request_hash_value = None
-    if idempotency_key:
-        try:
-            existing, request_hash_value = check_idempotency(
-                db,
-                key=idempotency_key,
-                endpoint=endpoint,
-                payload={},
-            )
-        except DomainError as exc:
-            raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
-        if existing:
-            return JSONResponse(content=existing.response_json, status_code=existing.status_code)
-
     try:
         with db.begin():
+            existing = None
+            request_hash_value = None
+            if idempotency_key:
+                try:
+                    existing, request_hash_value = check_idempotency(
+                        db,
+                        key=idempotency_key,
+                        endpoint=endpoint,
+                        payload={},
+                    )
+                except DomainError as exc:
+                    raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+                if existing:
+                    return JSONResponse(content=existing.response_json, status_code=existing.status_code)
+
             order, charge, expired = charges_service.simulate_paid(
                 db, charge_id=charge_id, background_tasks=background_tasks
             )
@@ -167,23 +167,23 @@ def cancel_charge(
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ):
     endpoint = request.url.path
-    existing = None
-    request_hash_value = None
-    if idempotency_key:
-        try:
-            existing, request_hash_value = check_idempotency(
-                db,
-                key=idempotency_key,
-                endpoint=endpoint,
-                payload={},
-            )
-        except DomainError as exc:
-            raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
-        if existing:
-            return JSONResponse(content=existing.response_json, status_code=existing.status_code)
-
     try:
         with db.begin():
+            existing = None
+            request_hash_value = None
+            if idempotency_key:
+                try:
+                    existing, request_hash_value = check_idempotency(
+                        db,
+                        key=idempotency_key,
+                        endpoint=endpoint,
+                        payload={},
+                    )
+                except DomainError as exc:
+                    raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+                if existing:
+                    return JSONResponse(content=existing.response_json, status_code=existing.status_code)
+
             charge = charges_service.cancel_charge(db, charge_id=charge_id)
             response_json = _serialize_charge(charge)
             if idempotency_key and request_hash_value:

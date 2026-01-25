@@ -11,6 +11,9 @@ def create_order(db: Session, amount_cents: int, currency: str):
     order = order_repo.create(db, amount_cents=amount_cents, currency=currency)
     ensure_order_transition(OrderStatus.CREATED, OrderStatus.AWAITING_PAYMENT)
     order.status = OrderStatus.AWAITING_PAYMENT.value
+    # Ensure INSERT runs so defaults (id/timestamps) are available for responses/events.
+    db.flush()
+    db.refresh(order)
     return order
 
 

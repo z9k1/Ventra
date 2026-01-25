@@ -31,7 +31,10 @@ async function handler(request: NextRequest, context: HandlerContext) {
   const method = request.method.toUpperCase()
   const init: RequestInit = { method, headers }
   if (method !== 'GET' && method !== 'HEAD') {
-    init.body = request.body
+    // NextRequest.body is a ReadableStream; passing it through to fetch() in Node
+    // can require `duplex`, and errors surface as 500s. Buffer the body instead.
+    const buf = await request.arrayBuffer()
+    if (buf.byteLength > 0) init.body = new Uint8Array(buf)
   }
 
   const forwarded = await fetch(target, init)
