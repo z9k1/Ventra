@@ -1,12 +1,12 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 
 import { apiRequest } from '@/lib/api'
 import type { Balance, Order } from '@/lib/types'
-import { loadLocalOrders, updateLocalOrder } from '@/lib/localOrders'
+import { loadLocalOrders, updateLocalOrder, type LocalOrder } from '@/lib/localOrders'
 
 import { BalanceCards } from './BalanceCards'
 import { TransactionsList } from './TransactionsList'
@@ -17,11 +17,12 @@ import { Button } from '@/components/ui/button'
 export default function DashboardClient() {
   const router = useRouter()
   const [refreshKey, setRefreshKey] = useState(0)
+  const [localOrders, setLocalOrders] = useState<LocalOrder[]>([])
+  const [isHydrated, setIsHydrated] = useState(false)
 
-  const localOrders = useMemo(() => {
-    // refreshKey forces reload after dialog actions
-    void refreshKey
-    return loadLocalOrders()
+  useEffect(() => {
+    setLocalOrders(loadLocalOrders())
+    setIsHydrated(true)
   }, [refreshKey])
 
   const balanceQuery = useQuery({
@@ -80,10 +81,12 @@ export default function DashboardClient() {
 
       <NewDepositDialog onCreated={onCreated} />
 
-      <TransactionsList
-        orders={localOrders}
-        onClick={(orderId) => router.push(`/wallet?orderId=${orderId}`)}
-      />
+      {isHydrated && (
+        <TransactionsList
+          orders={localOrders}
+          onClick={(orderId) => router.push(`/wallet?orderId=${orderId}`)}
+        />
+      )}
     </div>
   )
 }

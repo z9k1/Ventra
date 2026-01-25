@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQueries } from '@tanstack/react-query'
 import { formatDistanceToNowStrict } from 'date-fns'
 
@@ -18,8 +18,12 @@ type FeedItem = {
 }
 
 export default function ActivityClient() {
-  const orders = useMemo(() => loadLocalOrders(), [])
+  const [orders, setOrders] = useState<any[]>([])
   const [items, setItems] = useState<FeedItem[]>([])
+
+  useEffect(() => {
+    setOrders(loadLocalOrders())
+  }, [])
 
   useQueries({
     queries: orders.map((o) => ({
