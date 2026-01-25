@@ -4,5 +4,15 @@ frontend/node_modules/
 frontend/.next/
 frontend/.turbo/
 frontend/.env.local
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Pytest
+.pytest_cache/
+
+# (Opcional) ambientes virtuais
+.venv/
+venv/

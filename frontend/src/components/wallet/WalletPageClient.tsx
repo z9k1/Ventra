@@ -22,13 +22,13 @@ export default function WalletPageClient({ initialOrderId }: { initialOrderId: s
   const { toast } = useToast()
 
   const orderQuery = useQuery({
-    queryKey: ['wallet-order', orderId],
+    queryKey: ['deposit', orderId],
     queryFn: () => apiRequest<Order>(`/orders/${orderId}`),
     enabled: Boolean(orderId)
   })
 
   const ledgerQuery = useQuery({
-    queryKey: ['wallet-ledger', orderId],
+    queryKey: ['ledger', orderId],
     queryFn: () => apiRequest<LedgerEntry[]>(`/orders/${orderId}/ledger`),
     enabled: Boolean(orderId)
   })
@@ -74,13 +74,19 @@ export default function WalletPageClient({ initialOrderId }: { initialOrderId: s
         await apiRequest(`/orders/${orderId}/refund`, { method: 'POST', action: 'refund' })
       }
 
-      await queryClient.invalidateQueries({ queryKey: ['wallet-order', orderId] })
-      await queryClient.invalidateQueries({ queryKey: ['wallet-ledger', orderId] })
+      await queryClient.invalidateQueries({ queryKey: ['deposit', orderId] })
+      await queryClient.invalidateQueries({ queryKey: ['ledger', orderId] })
+      await queryClient.invalidateQueries({ queryKey: ['wallet', 'balances'] })
 
       const updated = await apiRequest<Order>(`/orders/${orderId}`)
       updateLocalOrder(orderId, { lastKnownStatus: updated.status, chargeId: updated.charge?.id })
 
-      toast({ title: 'Sucesso', description: 'Acao executada.', variant: 'success' })
+      let successMsg = 'Ação executada.'
+      if (kind === 'simulate') successMsg = 'Pagamento confirmado. Valor em custódia.'
+      if (kind === 'release') successMsg = 'Valor liberado para o saldo disponível.'
+      if (kind === 'refund') successMsg = 'Valor reembolsado ao cliente.'
+
+      toast({ title: 'Sucesso', description: successMsg, variant: 'success' })
     } catch (error: any) {
       toast({ title: 'Erro', description: error?.message || 'Falha na acao', variant: 'destructive' })
     } finally {
@@ -104,7 +110,7 @@ export default function WalletPageClient({ initialOrderId }: { initialOrderId: s
             className="w-full rounded-[16px] border border-border bg-black/20 px-4 py-3"
           />
         </div>
-        <Button size="icon" variant="outline" type="button" onClick={() => queryClient.invalidateQueries({ queryKey: ['wallet-order', orderId] })}>
+        <Button size="icon" variant="outline" type="button" onClick={() => queryClient.invalidateQueries({ queryKey: ['deposit', orderId] })}>
           <Search size={18} />
         </Button>
       </div>
@@ -153,11 +159,11 @@ export default function WalletPageClient({ initialOrderId }: { initialOrderId: s
           <div className="grid grid-cols-2 gap-2">
             {status === 'AWAITING_PAYMENT' && (
               <>
-                <Button variant="outline" onClick={handleCopyPix}>
+                <Button variant="outline" disabled={busy} onClick={handleCopyPix}>
                   Copiar Pix
                 </Button>
                 <Button disabled={busy || !charge || charge.status !== 'PENDING'} onClick={() => runAction('simulate')}>
-                  {busy ? <Loader2 className="animate-spin" size={16} /> : 'Simular pagamento'}
+                  {busy ? 'Processando...' : 'Simular pagamento'}
                 </Button>
               </>
             )}

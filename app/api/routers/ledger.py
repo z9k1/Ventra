@@ -44,6 +44,16 @@ def list_ledger(order_id: UUID, db: Session = Depends(db_session)):
 
 @router.get("/balance", response_model=BalanceResponse)
 def get_balance(db: Session = Depends(db_session)):
+    """
+    Calculates the balance based on ledger entries.
+
+    Accounting rules:
+    - Available Balance (available_balance_cents): Sum of all entries in the 'merchant' account.
+      This represents funds that have been released from escrow and are available to the merchant.
+    - Escrow Balance (escrow_balance_cents): Sum of all entries in the 'escrow' account.
+      This represents funds that are paid but still held in custody.
+    - Total Balance (total_balance_cents): Sum of available and escrow balances.
+    """
     available = ledger_repo.get_balance_for_account(db, LedgerAccount.MERCHANT.value)
     escrow = ledger_repo.get_balance_for_account(db, LedgerAccount.ESCROW.value)
     return BalanceResponse(

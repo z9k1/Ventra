@@ -5,8 +5,9 @@ import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { differenceInSeconds } from 'date-fns'
-import { Copy, Plus, Loader2 } from 'lucide-react'
+import { Copy, Plus, Loader2, CheckCircle2, XCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -43,11 +44,13 @@ function formatCountdown(expiresAt: string) {
 export function NewDepositDialog({ onCreated }: { onCreated: () => void }) {
   const [open, setOpen] = React.useState(false)
   const [step, setStep] = React.useState<Step>({ key: 'form' })
+  const [status, setStatus] = React.useState<'idle' | 'processing' | 'approved' | 'refunded'>('idle')
   const [busy, setBusy] = React.useState(false)
   const [countdown, setCountdown] = React.useState<{ seconds: number; label: string } | null>(null)
 
   const router = useRouter()
   const { toast } = useToast()
+  const queryClient = useQueryClient()
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -111,10 +114,20 @@ export function NewDepositDialog({ onCreated }: { onCreated: () => void }) {
     }
   }
 
+  const invalidateAll = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['wallet', 'balances'] }),
+      queryClient.invalidateQueries({ queryKey: ['deposits'] }),
+      step.key === 'pix' && queryClient.invalidateQueries({ queryKey: ['deposit', step.order.id] }),
+      step.key === 'pix' && queryClient.invalidateQueries({ queryKey: ['ledger', step.order.id] })
+    ].filter(Boolean))
+  }
+
   const simulatePaid = async () => {
     if (step.key !== 'pix') return
 
     setBusy(true)
+    setStatus('processing')
     try {
       await apiRequest(`/charges/${step.charge.id}/simulate-paid`, {
         method: 'POST',
@@ -129,8 +142,15 @@ export function NewDepositDialog({ onCreated }: { onCreated: () => void }) {
       setStep({ key: 'pix', order: updated, charge: updated.charge ?? step.charge })
       onCreated()
 
-      toast({ title: 'Pagamento confirmado', description: 'Ordem em custodia.', variant: 'success' })
+      setStatus('approved')
+      setTimeout(async () => {
+        await invalidateAll()
+        setOpen(false)
+        setStatus('idle')
+      }, 1000)
+
     } catch (error: any) {
+      setStatus('idle')
       toast({ title: 'Erro', description: error?.message || 'Falha ao simular pagamento', variant: 'destructive' })
     } finally {
       setBusy(false)
@@ -141,6 +161,7 @@ export function NewDepositDialog({ onCreated }: { onCreated: () => void }) {
     if (step.key !== 'pix') return
 
     setBusy(true)
+    setStatus('processing')
     try {
       const updated = await apiRequest<Order>(`/orders/${step.order.id}/release`, {
         method: 'POST',
@@ -149,8 +170,16 @@ export function NewDepositDialog({ onCreated }: { onCreated: () => void }) {
       updateLocalOrder(step.order.id, { lastKnownStatus: updated.status })
       setStep({ key: 'pix', order: updated, charge: step.charge })
       onCreated()
-      toast({ title: 'Liberado', description: 'Pagamento liberado ao merchant.', variant: 'success' })
+
+      setStatus('approved')
+      setTimeout(async () => {
+        await invalidateAll()
+        setOpen(false)
+        setStatus('idle')
+      }, 1000)
+
     } catch (error: any) {
+      setStatus('idle')
       toast({ title: 'Erro', description: error?.message || 'Falha ao liberar', variant: 'destructive' })
     } finally {
       setBusy(false)
@@ -161,6 +190,7 @@ export function NewDepositDialog({ onCreated }: { onCreated: () => void }) {
     if (step.key !== 'pix') return
 
     setBusy(true)
+    setStatus('processing')
     try {
       const updated = await apiRequest<Order>(`/orders/${step.order.id}/refund`, {
         method: 'POST',
@@ -169,8 +199,16 @@ export function NewDepositDialog({ onCreated }: { onCreated: () => void }) {
       updateLocalOrder(step.order.id, { lastKnownStatus: updated.status })
       setStep({ key: 'pix', order: updated, charge: step.charge })
       onCreated()
-      toast({ title: 'Reembolsado', description: 'Pagamento devolvido ao customer.', variant: 'success' })
+
+      setStatus('refunded')
+      setTimeout(async () => {
+        await invalidateAll()
+        setOpen(false)
+        setStatus('idle')
+      }, 1000)
+
     } catch (error: any) {
+      setStatus('idle')
       toast({ title: 'Erro', description: error?.message || 'Falha ao reembolsar', variant: 'destructive' })
     } finally {
       setBusy(false)
@@ -192,7 +230,36 @@ export function NewDepositDialog({ onCreated }: { onCreated: () => void }) {
           <Plus size={18} /> Novo Depósito
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="overflow-hidden p-0">
+        {status !== 'idle' && (
+          <div className={cn(
+            "absolute inset-0 z-50 flex flex-col items-center justify-center transition-all duration-300",
+            status === 'processing' ? "bg-accent text-accent-foreground" : "bg-background"
+          )}>
+            {status === 'processing' && (
+              <>
+                <Loader2 className="h-12 w-12 animate-spin mb-4" />
+                <h3 className="text-xl font-semibold">Processando pagamento...</h3>
+              </>
+            )}
+            {status === 'approved' && (
+              <>
+                <CheckCircle2 className="h-16 w-16 text-accent mb-4" />
+                <h3 className="text-2xl font-bold">Pagamento aprovado</h3>
+                <p className="text-muted-foreground mt-2">Valor em custódia.</p>
+              </>
+            )}
+            {status === 'refunded' && (
+              <>
+                <XCircle className="h-16 w-16 text-destructive mb-4" />
+                <h3 className="text-2xl font-bold">Pagamento reembolsado</h3>
+                <p className="text-muted-foreground mt-2">O valor foi devolvido ao pagador.</p>
+              </>
+            )}
+          </div>
+        )}
+
+        <div className="p-6">
         {step.key === 'form' ? (
           <>
             <DialogHeader>
@@ -246,33 +313,45 @@ export function NewDepositDialog({ onCreated }: { onCreated: () => void }) {
                 className="w-full min-h-[120px] rounded-[16px] border border-border bg-black/20 p-3 text-xs leading-relaxed"
               />
 
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => {
-                    navigator.clipboard.writeText(step.charge.pix_emv)
-                    toast({ title: 'Copiado', description: 'EMV copiado para a área de transferência.' })
-                  }}
-                >
-                  <Copy size={16} className="mr-2" /> Copy
-                </Button>
-                <Button type="button" className="flex-1" onClick={simulatePaid} disabled={busy}>
-                  {busy ? <Loader2 className="animate-spin" size={18} /> : 'Simular pagamento'}
-                </Button>
-              </div>
+              {step.order.status === 'AWAITING_PAYMENT' && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1"
+                    disabled={busy}
+                    onClick={() => {
+                      navigator.clipboard.writeText(step.charge.pix_emv)
+                      toast({ title: 'Copiado', description: 'EMV copiado para a área de transferência.' })
+                    }}
+                  >
+                    <Copy size={16} className="mr-2" /> Copiar
+                  </Button>
+                  <Button type="button" className="flex-1" onClick={simulatePaid} disabled={busy}>
+                    {busy ? 'Processando...' : 'Simular pagamento'}
+                  </Button>
+                </div>
+              )}
 
-              <Separator className="my-2" />
+              {canActions && (
+                <>
+                  <Separator className="my-2" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button type="button" variant="outline" disabled={busy} onClick={refund}>
+                      Reembolsar
+                    </Button>
+                    <Button type="button" disabled={busy} onClick={release}>
+                      Liberar
+                    </Button>
+                  </div>
+                </>
+              )}
 
-              <div className="grid grid-cols-2 gap-2">
-                <Button type="button" variant="outline" disabled={!canActions || busy} onClick={refund}>
-                  Reembolsar
-                </Button>
-                <Button type="button" disabled={!canActions || busy} onClick={release}>
-                  Liberar
-                </Button>
-              </div>
+              {['RELEASED', 'REFUNDED', 'CANCELED'].includes(step.order.status) && (
+                <div className="ventra-card p-3 text-center text-sm font-medium text-muted-foreground">
+                  Ordem finalizada
+                </div>
+              )}
 
               <p className="text-xs text-muted-foreground">
                 Status: <span className="text-foreground font-semibold">{step.order.status}</span>
@@ -280,6 +359,7 @@ export function NewDepositDialog({ onCreated }: { onCreated: () => void }) {
             </div>
           </>
         )}
+        </div>
       </DialogContent>
     </Dialog>
   )
