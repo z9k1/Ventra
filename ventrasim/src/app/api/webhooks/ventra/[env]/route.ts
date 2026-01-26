@@ -74,7 +74,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const eventId = typeof payload?.id === 'string' && payload.id ? payload.id : fallbackEventId(rawBody)
-  const eventType = typeof payload?.type === 'string' && payload.type ? payload.type : 'unknown'
+  const eventType =
+  (typeof payload?.type === 'string' && payload.type) ||
+  (typeof payload?.event === 'string' && payload.event) ||
+  'unknown'
   const orderId = extractOrderId(payload)
   const eventTimestamp = parseEventTimestamp(payload?.created_at)
   const receivedAt = new Date()
