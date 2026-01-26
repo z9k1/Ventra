@@ -9,9 +9,10 @@ import IntegrationPanel from './IntegrationPanel'
 export default async function EventsPage({
   searchParams,
 }: {
-  searchParams?: { orderId?: string }
+  searchParams?: Promise<{ orderId?: string }>
 }) {
-  const orderFilter = searchParams?.orderId?.trim() ?? ''
+  const sp = (await searchParams) ?? {}
+  const orderFilter = sp.orderId?.trim() ?? ''
 
   let rowsQuery = db
     .select({
@@ -22,7 +23,7 @@ export default async function EventsPage({
       signatureOk: webhookEvents.signatureOk,
       deltaMs: webhookEvents.deltaMs,
       receivedAt: webhookEvents.receivedAt,
-      retryCount: sql<number>`count(${webhookDeliveries.id})`
+      retryCount: sql<number>`count(${webhookDeliveries.id})`,
     })
     .from(webhookEvents)
     .leftJoin(webhookDeliveries, eq(webhookDeliveries.eventId, webhookEvents.eventId))
