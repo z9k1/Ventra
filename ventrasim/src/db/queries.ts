@@ -6,14 +6,37 @@ import { webhookDeliveries, webhookEndpoints, webhookEvents } from './schema'
 export async function getEndpointConfig(env: 'local' | 'sandbox' | 'staging') {
   const rows = await db
     .select({
+      env: webhookEndpoints.env,
       secret: webhookEndpoints.secret,
       deliveryMode: webhookEndpoints.deliveryMode,
       timeoutMs: webhookEndpoints.timeoutMs
     })
     .from(webhookEndpoints)
-    .where(and(eq(webhookEndpoints.env, env), eq(webhookEndpoints.isActive, true)))
+    .where(eq(webhookEndpoints.env, env))
     .limit(1)
   return rows[0] ?? null
+}
+
+export async function upsertEndpointConfig(env: 'local' | 'sandbox' | 'staging') {
+  const existing = await getEndpointConfig(env)
+  if (existing) return existing
+
+  const [inserted] = await db
+    .insert(webhookEndpoints)
+    .values({
+      env,
+      secret: 'ventra-sim-secret', // Default secret
+      deliveryMode: 'normal',
+      timeoutMs: 15000,
+      isActive: true
+    })
+    .returning({
+      env: webhookEndpoints.env,
+      secret: webhookEndpoints.secret,
+      deliveryMode: webhookEndpoints.deliveryMode,
+      timeoutMs: webhookEndpoints.timeoutMs
+    })
+  return inserted
 }
 
 export async function updateEndpointMode(args: {
