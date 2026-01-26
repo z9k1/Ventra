@@ -11,4 +11,5 @@ CREATE TABLE IF NOT EXISTS ventrasim_orders (
   updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (env, order_id)
 );
+
 CREATE INDEX IF NOT EXISTS ventrasim_orders_env_order_id_idx ON ventrasim_orders(env, order_id);

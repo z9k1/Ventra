@@ -1,7 +1,7 @@
 import { and, desc, eq, sql } from 'drizzle-orm'
 
 import { db } from './index'
-import { orders, webhookDeliveries, webhookEndpoints, webhookEvents } from './schema'
+import { ventraSimOrders, webhookDeliveries, webhookEndpoints, webhookEvents } from './schema'
 
 export async function getEndpointConfig(env: 'local' | 'sandbox' | 'staging') {
   const rows = await db
@@ -174,7 +174,7 @@ export async function upsertOrder(args: UpsertOrderArgs) {
   }
 
   await db
-    .insert(orders)
+    .insert(ventraSimOrders)
     .values(insertValues)
     .onConflictDoUpdate({
       target: (table) => [table.env, table.orderId],
@@ -185,45 +185,45 @@ export async function upsertOrder(args: UpsertOrderArgs) {
 export async function listOrders({ env, limit = 50 }: { env?: OrderEnv; limit?: number } = {}) {
   let query = db
     .select({
-      id: orders.id,
-      env: orders.env,
-      orderId: orders.orderId,
-      amount: orders.amount,
-      currency: orders.currency,
-      status: orders.status,
-      chargeId: orders.chargeId,
-      txid: orders.txid,
-      createdAt: orders.createdAt,
-      updatedAt: orders.updatedAt
+      id: ventraSimOrders.id,
+      env: ventraSimOrders.env,
+      orderId: ventraSimOrders.orderId,
+      amount: ventraSimOrders.amount,
+      currency: ventraSimOrders.currency,
+      status: ventraSimOrders.status,
+      chargeId: ventraSimOrders.chargeId,
+      txid: ventraSimOrders.txid,
+      createdAt: ventraSimOrders.createdAt,
+      updatedAt: ventraSimOrders.updatedAt
     })
-    .from(orders)
+    .from(ventraSimOrders)
 
   if (env) {
-    query = query.where(eq(orders.env, env))
+    query = query.where(eq(ventraSimOrders.env, env))
   }
 
-  return query.orderBy(desc(orders.updatedAt)).limit(limit)
+  return query.orderBy(desc(ventraSimOrders.updatedAt)).limit(limit)
 }
 
 export async function getOrderById(orderId: string, env?: OrderEnv) {
   let query = db
     .select({
-      id: orders.id,
-      env: orders.env,
-      orderId: orders.orderId,
-      amount: orders.amount,
-      currency: orders.currency,
-      status: orders.status,
-      chargeId: orders.chargeId,
-      txid: orders.txid,
-      createdAt: orders.createdAt,
-      updatedAt: orders.updatedAt
+      id: ventraSimOrders.id,
+      env: ventraSimOrders.env,
+      orderId: ventraSimOrders.orderId,
+      amount: ventraSimOrders.amount,
+      currency: ventraSimOrders.currency,
+      status: ventraSimOrders.status,
+      chargeId: ventraSimOrders.chargeId,
+      txid: ventraSimOrders.txid,
+      createdAt: ventraSimOrders.createdAt,
+      updatedAt: ventraSimOrders.updatedAt
     })
-    .from(orders)
-    .where(eq(orders.orderId, orderId))
+      .from(ventraSimOrders)
+    .where(eq(ventraSimOrders.orderId, orderId))
 
   if (env) {
-    query = query.where(eq(orders.env, env))
+    query = query.where(eq(ventraSimOrders.env, env))
   }
 
   const rows = await query.limit(1)
