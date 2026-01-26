@@ -42,9 +42,10 @@ function fallbackEventId(rawBody: Buffer) {
   return `missing-${createHash('sha256').update(rawBody).digest('hex')}`
 }
 
-export async function POST(request: NextRequest, context: { params: { env: string } }) {
-  const env = context.params.env as Env
-  if (!allowedEnvs.includes(env)) {
+export async function POST(request: NextRequest, context: { params: Promise<{ env: string }> }) {
+  const { env } = await context.params
+  const resolvedEnv = env as Env
+  if (!allowedEnvs.includes(resolvedEnv)) {
     return NextResponse.json({ ok: true }, { status: 200 })
   }
 
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest, context: { params: { env: strin
   const receivedAt = new Date()
   const deltaMs = eventTimestamp ? receivedAt.getTime() - eventTimestamp.getTime() : null
 
-  const secret = await getActiveEndpointSecret(env)
+  const secret = await getActiveEndpointSecret(resolvedEnv)
   const headerSignature = normalizeSignature(request.headers.get('x-signature'))
   const calculatedSignature = secret
     ? createHmac('sha256', secret).update(rawBody).digest('hex')
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest, context: { params: { env: strin
   try {
     await insertWebhookEventIfNotExists({
       eventId,
-      env,
+    env: resolvedEnv,
       eventType,
       orderId,
       signatureOk,
@@ -101,7 +102,7 @@ export async function POST(request: NextRequest, context: { params: { env: strin
       attemptNumber,
       status: '200'
     })
-    console.log('[ventrasim] webhook stored', { env, eventId, attemptNumber, signatureOk })
+    console.log('[ventrasim] webhook stored', { env: resolvedEnv, eventId, attemptNumber, signatureOk })
   } catch (error) {
     console.error('[ventrasim] webhook store failed', error)
   }
