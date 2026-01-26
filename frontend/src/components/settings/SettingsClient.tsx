@@ -75,7 +75,7 @@ export default function SettingsClient() {
             <label className="text-[11px] uppercase tracking-[0.32em] text-muted-foreground">API Key</label>
             <input
               className="w-full rounded-[16px] border border-border bg-black/20 px-4 py-3"
-              placeholder="dev-secret"
+              placeholder=""
               {...form.register('apiKey')}
             />
             {form.formState.errors.apiKey && (

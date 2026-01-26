@@ -7,7 +7,7 @@ const STORAGE_KEY = 'ventra_settings_v1'
 
 export const DEFAULT_SETTINGS: ApiSettings = {
   apiBaseUrl: 'http://localhost:8000',
-  apiKey: 'dev-secret'
+  apiKey: ''
 }
 
 export function loadSettings(): ApiSettings {

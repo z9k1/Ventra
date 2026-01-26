@@ -7,6 +7,7 @@ import { formatDistanceToNowStrict } from 'date-fns'
 import { apiRequest } from '@/lib/api'
 import type { LedgerEntry, Order } from '@/lib/types'
 import { loadLocalOrders } from '@/lib/localOrders'
+import { ledgerEntryLabel } from '@/lib/labels'
 
 import { Card } from '@/components/ui/card'
 
@@ -60,7 +61,7 @@ export default function ActivityClient() {
         {items.map((item) => (
           <Card key={item.id} className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold">{item.event.replace(/_/g, '.').toLowerCase()}</p>
+              <p className="text-sm font-semibold">{ledgerEntryLabel(item.event).title}</p>
               <p className="text-xs text-muted-foreground font-mono">{item.orderId.slice(0, 8)}...</p>
             </div>
             <p className="text-xs text-muted-foreground">
