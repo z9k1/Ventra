@@ -1,7 +1,7 @@
-import { and, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, sql } from 'drizzle-orm'
 
 import { db } from './index'
-import { webhookDeliveries, webhookEndpoints, webhookEvents } from './schema'
+import { orders, webhookDeliveries, webhookEndpoints, webhookEvents } from './schema'
 
 export async function getEndpointConfig(env: 'local' | 'sandbox' | 'staging') {
   const rows = await db
@@ -127,4 +127,132 @@ export async function listDeliveriesByEventId(eventId: string) {
     .from(webhookDeliveries)
     .where(eq(webhookDeliveries.eventId, eventId))
     .orderBy(webhookDeliveries.attemptNumber)
+}
+
+export type OrderEnv = 'local' | 'sandbox' | 'staging'
+
+type UpsertOrderArgs = {
+  env: OrderEnv
+  orderId: string
+  status: string
+  amount?: number | null
+  currency?: string | null
+  chargeId?: string | null
+  txid?: string | null
+}
+
+export async function upsertOrder(args: UpsertOrderArgs) {
+  const now = new Date()
+  const insertValues = {
+    env: args.env,
+    orderId: args.orderId,
+    amount: args.amount ?? null,
+    currency: args.currency ?? 'BRL',
+    status: args.status,
+    chargeId: args.chargeId ?? null,
+    txid: args.txid ?? null,
+    createdAt: now,
+    updatedAt: now
+  }
+
+  const updateValues: Record<string, unknown> = {
+    status: args.status,
+    updatedAt: now
+  }
+
+  if (args.amount !== undefined) {
+    updateValues.amount = args.amount
+  }
+  if (args.currency) {
+    updateValues.currency = args.currency
+  }
+  if (args.chargeId !== undefined) {
+    updateValues.chargeId = args.chargeId
+  }
+  if (args.txid !== undefined) {
+    updateValues.txid = args.txid
+  }
+
+  await db
+    .insert(orders)
+    .values(insertValues)
+    .onConflictDoUpdate({
+      target: (table) => [table.env, table.orderId],
+      set: updateValues
+    })
+}
+
+export async function listOrders({ env, limit = 50 }: { env?: OrderEnv; limit?: number } = {}) {
+  let query = db
+    .select({
+      id: orders.id,
+      env: orders.env,
+      orderId: orders.orderId,
+      amount: orders.amount,
+      currency: orders.currency,
+      status: orders.status,
+      chargeId: orders.chargeId,
+      txid: orders.txid,
+      createdAt: orders.createdAt,
+      updatedAt: orders.updatedAt
+    })
+    .from(orders)
+
+  if (env) {
+    query = query.where(eq(orders.env, env))
+  }
+
+  return query.orderBy(desc(orders.updatedAt)).limit(limit)
+}
+
+export async function getOrderById(orderId: string, env?: OrderEnv) {
+  let query = db
+    .select({
+      id: orders.id,
+      env: orders.env,
+      orderId: orders.orderId,
+      amount: orders.amount,
+      currency: orders.currency,
+      status: orders.status,
+      chargeId: orders.chargeId,
+      txid: orders.txid,
+      createdAt: orders.createdAt,
+      updatedAt: orders.updatedAt
+    })
+    .from(orders)
+    .where(eq(orders.orderId, orderId))
+
+  if (env) {
+    query = query.where(eq(orders.env, env))
+  }
+
+  const rows = await query.limit(1)
+  return rows[0] ?? null
+}
+
+export async function listEventsByOrderId(orderId: string) {
+  return db
+    .select({
+      id: webhookEvents.id,
+      eventId: webhookEvents.eventId,
+      eventType: webhookEvents.eventType,
+      orderId: webhookEvents.orderId,
+      signatureOk: webhookEvents.signatureOk,
+      deltaMs: webhookEvents.deltaMs,
+      receivedAt: webhookEvents.receivedAt,
+      retryCount: sql<number>`count(${webhookDeliveries.id})`
+    })
+    .from(webhookEvents)
+    .leftJoin(webhookDeliveries, eq(webhookDeliveries.eventId, webhookEvents.eventId))
+    .where(eq(webhookEvents.orderId, orderId))
+    .groupBy(
+      webhookEvents.id,
+      webhookEvents.eventId,
+      webhookEvents.eventType,
+      webhookEvents.orderId,
+      webhookEvents.signatureOk,
+      webhookEvents.deltaMs,
+      webhookEvents.receivedAt
+    )
+    .orderBy(desc(webhookEvents.receivedAt))
 }

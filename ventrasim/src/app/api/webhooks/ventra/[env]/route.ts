@@ -5,7 +5,9 @@ import {
   getEndpointConfig,
   getNextAttemptNumber,
   insertWebhookDelivery,
-  insertWebhookEventIfNotExists
+  insertWebhookEventIfNotExists,
+  OrderEnv,
+  upsertOrder
 } from '@/db/queries'
 
 const allowedEnvs = ['local', 'sandbox', 'staging'] as const
@@ -40,6 +42,50 @@ function extractOrderId(payload: any) {
 
 function fallbackEventId(rawBody: Buffer) {
   return `missing-${createHash('sha256').update(rawBody).digest('hex')}`
+}
+
+const ORDER_STATUS_BY_EVENT: Record<string, string> = {
+  'charge.created': 'AWAITING_PAYMENT',
+  'payment.created': 'AWAITING_PAYMENT',
+  'charge.paid': 'PAID',
+  'payment.paid': 'PAID',
+  'order.paid_in_escrow': 'IN_ESCROW',
+  'escrow.funds_held': 'IN_ESCROW',
+  'escrow.in_escrow': 'IN_ESCROW',
+  'order.in_escrow': 'IN_ESCROW',
+  'escrow.released': 'RELEASED',
+  'order.released': 'RELEASED',
+  'escrow.refunded': 'REFUNDED',
+  'order.refunded': 'REFUNDED'
+}
+
+function deriveOrderStatusFromEvent(eventType: string) {
+  return ORDER_STATUS_BY_EVENT[eventType.toLowerCase()] ?? null
+}
+
+function getPayloadData(payload: any) {
+  if (payload && typeof payload.data === 'object' && payload.data !== null) {
+    return payload.data
+  }
+  return payload
+}
+
+function pickString(payload: any, ...keys: string[]) {
+  for (const key of keys) {
+    if (payload && typeof payload[key] === 'string' && payload[key]) {
+      return payload[key]
+    }
+  }
+  return null
+}
+
+function pickNumber(payload: any, ...keys: string[]) {
+  for (const key of keys) {
+    if (payload && typeof payload[key] === 'number') {
+      return payload[key]
+    }
+  }
+  return null
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ env: string }> }) {
@@ -103,6 +149,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       payloadJson,
       headersJson
     })
+
+    const effectiveOrderId = orderId === 'unknown' ? null : orderId
+    const derivedStatus = deriveOrderStatusFromEvent(eventType)
+    if (effectiveOrderId && derivedStatus) {
+      const dataSection = getPayloadData(payload)
+      await upsertOrder({
+        env: resolvedEnv as OrderEnv,
+        orderId: effectiveOrderId,
+        status: derivedStatus,
+        amount: pickNumber(dataSection, 'amount_cents', 'amount'),
+        currency: pickString(dataSection, 'currency'),
+        chargeId: pickString(dataSection, 'charge_id', 'chargeId'),
+        txid: pickString(dataSection, 'txid', 'txId')
+      })
+    }
 
     const attemptNumber = await getNextAttemptNumber(eventId)
 

@@ -53,3 +53,22 @@ export const webhookDeliveries = pgTable(
     eventAttemptIdx: index('webhook_deliveries_event_attempt_idx').on(table.eventId, table.attemptNumber)
   })
 )
+
+export const orders = pgTable(
+  'orders',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    env: envEnum('env').notNull(),
+    orderId: text('order_id').notNull(),
+    amount: integer('amount'),
+    currency: text('currency').notNull().default('BRL'),
+    status: text('status').notNull().default('AWAITING_PAYMENT'),
+    chargeId: text('charge_id'),
+    txid: text('txid'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    envOrderUnique: index('orders_env_order_id_unique').on(table.env, table.orderId).unique()
+  })
+)

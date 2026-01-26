@@ -20,6 +20,10 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Orders Dashboard
+
+`/orders` mostra todos os pedidos registrados pela VentraSim, exibindo o status do webhook/order, valor e ambiente. O detalhe (`/orders/[orderId]`) reúne o cache local, timeline do pedido e os botões de release/refund, que só disparam a API do Ventra e aguardam o webhook para atualizar o status.Todo status exibido é derivado dos webhooks recebidos (`charge.created`, `charge.paid`, `order.paid_in_escrow`, `order.released`, `order.refunded`, etc.).
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

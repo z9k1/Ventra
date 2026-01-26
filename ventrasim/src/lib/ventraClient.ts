@@ -104,3 +104,21 @@ export async function createEscrow(params: { amount_cents: number }) {
 
   return { order, charge }
 }
+
+async function postOrderAction(orderId: string, action: 'release' | 'refund') {
+  if (!orderId) {
+    throw new Error('orderId is required')
+  }
+  return ventraRequest(`/orders/${orderId}/${action}`, {
+    method: 'POST',
+    idempotencyKey: `ventrasim-${action}-${randomUUID()}`
+  })
+}
+
+export async function releaseOrder(orderId: string) {
+  return postOrderAction(orderId, 'release')
+}
+
+export async function refundOrder(orderId: string) {
+  return postOrderAction(orderId, 'refund')
+}

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { createEscrow } from '@/lib/ventraClient'
+import { OrderEnv, upsertOrder } from '@/db/queries'
+
+const DEFAULT_ORDER_ENV: OrderEnv = 'sandbox'
 
 function parseAmount(value: unknown): number | null {
   if (typeof value === 'number') {
@@ -32,6 +35,15 @@ export async function POST(request: NextRequest) {
 
   try {
     const payload = await createEscrow({ amount_cents: Math.round(amount * 100) })
+    await upsertOrder({
+      env: DEFAULT_ORDER_ENV,
+      orderId: payload.order.id,
+      amount: payload.order.amount_cents,
+      currency: payload.order.currency,
+      status: payload.order.status,
+      chargeId: payload.charge.id,
+      txid: payload.charge.txid
+    })
     return NextResponse.json(payload, { status: 201 })
   } catch (error) {
     console.error('[ventrasim] failed to create escrow', error)
