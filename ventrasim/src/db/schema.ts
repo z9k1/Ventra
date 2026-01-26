@@ -57,19 +57,19 @@ export const webhookDeliveries = pgTable(
 export const ventraSimOrders = pgTable(
   'ventrasim_orders',
   {
-    id: uuid('id').defaultRandom().primaryKey(),
-    env: envEnum('env').notNull(),
+    id: integer('id').primaryKey(),
+    env: text('env').notNull(),
     orderId: text('order_id').notNull(),
-    amount: integer('amount'),
-    currency: text('currency').notNull().default('BRL'),
-    status: text('status').notNull().default('AWAITING_PAYMENT'),
+    amount: integer('amount').notNull(),
+    currency: text('currency').default('BRL'),
+    status: text('status').notNull(),
     chargeId: text('charge_id'),
     txid: text('txid'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
   },
   (table) => ({
-    envOrderUnique: index('ventrasim_orders_env_order_id_unique')
+    envOrderUnique: index('ventrasim_orders_env_order_id_key')
       .on(table.env, table.orderId)
       .unique()
   })

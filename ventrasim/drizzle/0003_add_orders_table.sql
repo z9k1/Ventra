@@ -1,14 +1,13 @@
 CREATE TABLE IF NOT EXISTS ventrasim_orders (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  env ventra_env NOT NULL,
-  order_id text NOT NULL,
-  amount integer,
-  currency text NOT NULL DEFAULT 'BRL',
-  status text NOT NULL DEFAULT 'AWAITING_PAYMENT',
-  charge_id text,
-  txid text,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
+  id SERIAL PRIMARY KEY,
+  env TEXT NOT NULL,
+  order_id TEXT NOT NULL,
+  amount INTEGER NOT NULL,
+  currency TEXT DEFAULT 'BRL',
+  status TEXT NOT NULL,
+  charge_id TEXT,
+  txid TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (env, order_id)
 );
-CREATE INDEX IF NOT EXISTS ventrasim_orders_env_order_id_idx ON ventrasim_orders(env, order_id);
