@@ -46,14 +46,14 @@ Container default: `apidepagamento-db-1` em `localhost:5432`.
 Crie `.env` na raiz (copie de `.env.example`):
 
 - `DATABASE_URL=postgresql+psycopg2://escrow:escrow@localhost:5432/escrow`
-- `API_KEY=dev-secret`
+- `API_KEY=<your-secret>`
 - `ENV=sandbox`
 
 No PowerShell, pode exportar so para a sessao:
 
 ```powershell
 $env:DATABASE_URL="postgresql+psycopg2://escrow:escrow@localhost:5432/escrow"
-$env:API_KEY="dev-secret"
+$env:API_KEY="<your-secret>"
 $env:ENV="sandbox"
 ```
 
@@ -102,7 +102,7 @@ pnpm dev
 Abra `http://localhost:3000/settings` e configure:
 
 - `API_BASE_URL`: `http://localhost:8000`
-- `API_KEY`: `dev-secret`
+- `API_KEY`: `<your-secret>`
 
 A UI usa `/api/proxy` para evitar CORS.
 
@@ -150,7 +150,7 @@ docker exec -i apidepagamento-db-1 psql -U escrow -d escrow -f /var/lib/postgres
 ### Cadastrar secret do webhook
 
 ```powershell
-docker exec -i apidepagamento-db-1 psql -U escrow -d escrow -c "insert into webhook_endpoints (env, secret, is_active) values ('sandbox','dev-secret',true) on conflict (env) do update set secret = excluded.secret, is_active = true;"
+docker exec -i apidepagamento-db-1 psql -U escrow -d escrow -c "insert into webhook_endpoints (env, secret, is_active) values ('sandbox','<your-secret>',true) on conflict (env) do update set secret = excluded.secret, is_active = true;"
 ```
 
 ### Endpoint de recebimento
@@ -166,7 +166,7 @@ docker exec -i apidepagamento-db-1 psql -U escrow -d escrow -c "insert into webh
 
 ```powershell
 $payload='{"id":"evt_003","type":"order.paid","created_at":"2026-01-25T18:00:00Z","order_id":"ord_123"}'
-$secret='dev-secret'
+$secret='<your-secret>'
 $hmac = New-Object System.Security.Cryptography.HMACSHA256
 $hmac.Key = [System.Text.Encoding]::UTF8.GetBytes($secret)
 $hashBytes = $hmac.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($payload))
