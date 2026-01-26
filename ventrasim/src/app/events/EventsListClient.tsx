@@ -156,6 +156,12 @@ export default function EventsListClient({ rows }: { rows: EventRow[] }) {
         </button>
       ))}
 
+      {rows.length === 0 && (
+        <div className="rounded-md border border-dashed border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
+          Nenhum evento encontrado para o filtro atual. Aguarde o webhook chegar ou limpe o filtro para ver toda a fila.
+        </div>
+      )}
+
       {selectedId && (
         <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/50" onClick={() => setSelectedId(null)} />

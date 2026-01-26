@@ -4,9 +4,16 @@ import { desc, eq, sql } from 'drizzle-orm'
 
 import EventsListClient from './EventsListClient'
 import FailureModeToggle from './FailureModeToggle'
+import IntegrationPanel from './IntegrationPanel'
 
-export default async function EventsPage() {
-  const rows = await db
+export default async function EventsPage({
+  searchParams,
+}: {
+  searchParams?: { orderId?: string }
+}) {
+  const orderFilter = searchParams?.orderId?.trim() ?? ''
+
+  let rowsQuery = db
     .select({
       id: webhookEvents.id,
       eventId: webhookEvents.eventId,
@@ -28,8 +35,12 @@ export default async function EventsPage() {
       webhookEvents.deltaMs,
       webhookEvents.receivedAt
     )
-    .orderBy(desc(webhookEvents.receivedAt))
-    .limit(50)
+
+  if (orderFilter) {
+    rowsQuery = rowsQuery.where(eq(webhookEvents.orderId, orderFilter))
+  }
+
+  const rows = await rowsQuery.orderBy(desc(webhookEvents.receivedAt)).limit(50)
 
   return (
     <main className="p-8 max-w-6xl mx-auto">
@@ -37,6 +48,14 @@ export default async function EventsPage() {
         <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Webhook Events</h1>
         <p className="text-zinc-500 mt-1">Simulação de recebimento e latência do Ventra</p>
       </header>
+
+      <IntegrationPanel initialOrderFilter={orderFilter || undefined} />
+
+      <div className="mb-6 text-sm text-zinc-500">
+        {orderFilter
+          ? `Filtrando eventos do pedido ${orderFilter}`
+          : 'Mostrando os 50 eventos mais recentes recebidos pela VentraSim.'}
+      </div>
 
       <FailureModeToggle />
 
