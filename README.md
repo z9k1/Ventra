@@ -51,7 +51,7 @@ No PowerShell, voce tambem pode exportar as env vars so para o terminal atual:
 
 ```powershell
 $env:DATABASE_URL="postgresql+psycopg2://escrow:escrow@localhost:5432/escrow"
-$env:API_KEY="dev-secret"
+$env:API_KEY="YOUR_API_KEY"
 $env:ENV="sandbox"
 ```
 
@@ -87,7 +87,7 @@ O Next vai subir em `http://localhost:3000` (ou outra porta se 3000 estiver ocup
 Abra `http://localhost:3000/settings` e configure:
 
 - `API_BASE_URL`: `http://localhost:8000`
-- `API_KEY`: `dev-secret`
+- `API_KEY`: `YOUR_API_KEY`
 
 A UI chama sempre o proxy interno do Next (`/api/proxy/...`) para evitar CORS.
 
@@ -151,7 +151,7 @@ python -c "from http.server import BaseHTTPRequestHandler, HTTPServer\n\nclass H
 Configure `.env`:
 
 - `WEBHOOK_URL=http://localhost:9999/hook`
-- `WEBHOOK_SECRET=dev-webhook-secret`
+- `WEBHOOK_SECRET=your_api_key`
 
 ## Troubleshooting
 
