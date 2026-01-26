@@ -63,3 +63,39 @@ export async function insertWebhookDelivery(args: {
     errorMessage: args.errorMessage ?? null
   })
 }
+
+export async function getWebhookEventByEventId(eventId: string) {
+  const rows = await db
+    .select({
+      id: webhookEvents.id,
+      eventId: webhookEvents.eventId,
+      env: webhookEvents.env,
+      eventType: webhookEvents.eventType,
+      orderId: webhookEvents.orderId,
+      signatureOk: webhookEvents.signatureOk,
+      eventTimestamp: webhookEvents.eventTimestamp,
+      receivedAt: webhookEvents.receivedAt,
+      deltaMs: webhookEvents.deltaMs,
+      payloadJson: webhookEvents.payloadJson,
+      headersJson: webhookEvents.headersJson
+    })
+    .from(webhookEvents)
+    .where(eq(webhookEvents.eventId, eventId))
+    .limit(1)
+  return rows[0] ?? null
+}
+
+export async function listDeliveriesByEventId(eventId: string) {
+  return db
+    .select({
+      id: webhookDeliveries.id,
+      eventId: webhookDeliveries.eventId,
+      attemptNumber: webhookDeliveries.attemptNumber,
+      status: webhookDeliveries.status,
+      errorMessage: webhookDeliveries.errorMessage,
+      receivedAt: webhookDeliveries.receivedAt
+    })
+    .from(webhookDeliveries)
+    .where(eq(webhookDeliveries.eventId, eventId))
+    .orderBy(webhookDeliveries.attemptNumber)
+}
