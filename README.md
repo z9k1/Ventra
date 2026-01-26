@@ -114,7 +114,28 @@ A UI usa `/api/proxy` para evitar CORS.
 4) Release ou Refund
 5) Ver saldo e ledger
 
-## 4) VentraSim (Webhook Receiver)
+## 4) Ventra → VentraSim Webhooks
+
+O backend do Ventra dispara automaticamente os eventos (`order.paid_in_escrow`, `payment.paid`, `order.released`, `order.refunded`, etc.) sempre que o estado do order muda. Para ativar basta configurar duas variáveis de ambiente no `.env`:
+
+```dotenv
+WEBHOOK_URL=http://localhost:3001/api/webhooks/ventra/sandbox
+WEBHOOK_SECRET=dev-webhook-secret
+```
+
+Se o Ventra estiver rodando dentro de Docker, substitua `localhost` por `host.docker.internal` para que o container consiga alcançar o VentraSim (`http://host.docker.internal:3001/api/webhooks/ventra/sandbox`).
+
+Com essa configuração o FastAPI registra logs como `sending webhook payment.paid to ...`, permitindo confirmar no console que o callback foi disparado. A assinatura HMAC é calculada com o valor de `WEBHOOK_SECRET`, então mantenha o mesmo valor na tabela `webhook_endpoints` da VentraSim (`env = sandbox`).
+
+Você pode inspecionar a subscription ativa diretamente no Postgres:
+
+```powershell
+docker exec -i apidepagamento-db-1 psql -U escrow -d escrow -c "select url, secret, is_enabled from webhook_subscriptions;"
+```
+
+O registro é criado automaticamente no startup do `uvicorn app.main:app` sempre que `WEBHOOK_URL`/`WEBHOOK_SECRET` estiverem definidos.
+
+## 5) VentraSim (Webhook Receiver)
 
 ### Config
 

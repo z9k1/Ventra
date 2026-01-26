@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import logging
 import uuid
 from datetime import datetime, timezone
 
@@ -11,6 +12,8 @@ from sqlalchemy.orm import Session
 
 from app.repos import webhook_repo
 from app.settings import settings
+
+logger = logging.getLogger(__name__)
 
 
 def _canonical_payload(payload: dict) -> bytes:
@@ -25,8 +28,14 @@ def send_webhook(url: str, secret: str, payload: dict) -> None:
     payload_bytes = _canonical_payload(payload)
     signature = _signature(secret, payload_bytes)
     headers = {"X-Signature": signature, "Content-Type": "application/json"}
-    with httpx.Client(timeout=5) as client:
-        client.post(url, content=payload_bytes, headers=headers)
+    event_name = payload.get("event")
+    logger.info("sending webhook %s to %s", event_name, url)
+    try:
+        with httpx.Client(timeout=5) as client:
+            response = client.post(url, content=payload_bytes, headers=headers)
+            response.raise_for_status()
+    except httpx.HTTPError as exc:
+        logger.warning("webhook %s -> %s failed: %s", event_name, url, exc)
 
 
 def emit_event(db: Session, event: str, data: dict, background_tasks=None) -> None:
