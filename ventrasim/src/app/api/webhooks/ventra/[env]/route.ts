@@ -82,24 +82,29 @@ export async function POST(request: NextRequest, context: { params: { env: strin
 
   const payloadJson = parseError ? { raw: rawText, parse_error: parseError } : payload
 
-  await insertWebhookEventIfNotExists({
-    eventId,
-    env,
-    eventType,
-    orderId,
-    signatureOk,
-    eventTimestamp,
-    deltaMs,
-    payloadJson,
-    headersJson
-  })
+  try {
+    await insertWebhookEventIfNotExists({
+      eventId,
+      env,
+      eventType,
+      orderId,
+      signatureOk,
+      eventTimestamp,
+      deltaMs,
+      payloadJson,
+      headersJson
+    })
 
-  const attemptNumber = await getNextAttemptNumber(eventId)
-  await insertWebhookDelivery({
-    eventId,
-    attemptNumber,
-    status: '200'
-  })
+    const attemptNumber = await getNextAttemptNumber(eventId)
+    await insertWebhookDelivery({
+      eventId,
+      attemptNumber,
+      status: '200'
+    })
+    console.log('[ventrasim] webhook stored', { env, eventId, attemptNumber, signatureOk })
+  } catch (error) {
+    console.error('[ventrasim] webhook store failed', error)
+  }
 
   return NextResponse.json({ ok: true }, { status: 200 })
 }
