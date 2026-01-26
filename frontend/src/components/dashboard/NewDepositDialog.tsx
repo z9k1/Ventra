@@ -17,6 +17,7 @@ import { useToast } from '@/components/ui/use-toast'
 
 import { apiRequest } from '@/lib/api'
 import { createLocalCode, upsertLocalOrder, updateLocalOrder } from '@/lib/localOrders'
+import { orderStatusLabel } from '@/lib/labels'
 import type { Charge, Order } from '@/lib/types'
 
 const schema = z.object({
@@ -355,7 +356,7 @@ export function NewDepositDialog({ onCreated }: { onCreated: () => void }) {
               )}
 
               <p className="text-xs text-muted-foreground">
-                Status: <span className="text-foreground font-semibold">{step.order.status}</span>
+                Status: <span className="text-foreground font-semibold">{orderStatusLabel(step.order.status)}</span>
               </p>
             </div>
           </>

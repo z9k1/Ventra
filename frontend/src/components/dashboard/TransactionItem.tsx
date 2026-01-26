@@ -1,18 +1,21 @@
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { formatBRL } from '@/lib/format'
+import { orderStatusLabel } from '@/lib/labels'
 
 import { LocalOrder } from '@/lib/localOrders'
 
-const statusMap: Record<string, { label: string; variant: 'success' | 'neutral' }> = {
-  RELEASED: { label: 'PAGO', variant: 'success' },
-  PAID_IN_ESCROW: { label: 'AGUARDANDO', variant: 'neutral' },
-  REFUNDED: { label: 'CANCELADO', variant: 'neutral' },
-  AWAITING_PAYMENT: { label: 'PENDENTE', variant: 'neutral' }
+const statusVariantMap: Record<string, 'success' | 'neutral'> = {
+  RELEASED: 'success',
+  PAID_IN_ESCROW: 'neutral',
+  REFUNDED: 'neutral',
+  AWAITING_PAYMENT: 'neutral',
+  CANCELED: 'neutral'
 }
 
 export function TransactionItem({ order, onClick }: { order: LocalOrder; onClick: () => void }) {
-  const status = statusMap[order.lastKnownStatus] ?? { label: order.lastKnownStatus, variant: 'neutral' as const }
+  const label = orderStatusLabel(order.lastKnownStatus)
+  const variant = statusVariantMap[order.lastKnownStatus] || 'neutral'
 
   return (
     <button
@@ -30,7 +33,7 @@ export function TransactionItem({ order, onClick }: { order: LocalOrder; onClick
             <p className="text-sm text-muted-foreground">Custódia Pix · Escrow</p>
           </div>
         </div>
-        <Badge variant={status.variant}>{status.label}</Badge>
+        <Badge variant={variant}>{label}</Badge>
       </div>
 
       <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">

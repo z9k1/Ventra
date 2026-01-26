@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, Loader2, Search } from 'lucide-react'
+import { CheckCircle2, Loader2, Search, XCircle } from 'lucide-react'
 
 import { apiRequest } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import type { LedgerEntry, Order } from '@/lib/types'
 import { updateLocalOrder, upsertLocalOrder } from '@/lib/localOrders'
 import { formatBRL } from '@/lib/format'
+import { orderStatusLabel, chargeStatusLabel, ledgerEntryLabel } from '@/lib/labels'
 
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -16,8 +17,11 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/components/ui/use-toast'
 
+type UIStatus = 'idle' | 'processing' | 'approved' | 'released' | 'refunded' | 'error'
+
 export default function WalletPageClient({ initialOrderId }: { initialOrderId: string }) {
   const [orderId, setOrderId] = useState(initialOrderId)
+  const [uiStatus, setUiStatus] = useState<UIStatus>('idle')
   const queryClient = useQueryClient()
   const { toast } = useToast()
 
@@ -62,6 +66,7 @@ export default function WalletPageClient({ initialOrderId }: { initialOrderId: s
     if (!orderQuery.data) return
 
     setBusy(true)
+    setUiStatus('processing')
     try {
       if (kind === 'simulate') {
         if (!charge) return
@@ -81,16 +86,23 @@ export default function WalletPageClient({ initialOrderId }: { initialOrderId: s
       const updated = await apiRequest<Order>(`/orders/${orderId}`)
       updateLocalOrder(orderId, { lastKnownStatus: updated.status, chargeId: updated.charge?.id })
 
-      let successMsg = 'Ação executada.'
-      if (kind === 'simulate') successMsg = 'Pagamento confirmado. Valor em custódia.'
-      if (kind === 'release') successMsg = 'Valor liberado para o saldo disponível.'
-      if (kind === 'refund') successMsg = 'Valor reembolsado ao cliente.'
+      if (kind === 'simulate') {
+        setUiStatus('approved')
+      } else if (kind === 'release') {
+        setUiStatus('released')
+      } else if (kind === 'refund') {
+        setUiStatus('refunded')
+      }
 
-      toast({ title: 'Sucesso', description: successMsg, variant: 'success' })
+      setTimeout(() => {
+        setUiStatus('idle')
+        setBusy(false)
+      }, 1000)
+
     } catch (error: any) {
-      toast({ title: 'Erro', description: error?.message || 'Falha na acao', variant: 'destructive' })
-    } finally {
+      setUiStatus('idle')
       setBusy(false)
+      toast({ title: 'Erro', description: error?.message || 'Falha na acao', variant: 'destructive' })
     }
   }
 
@@ -120,11 +132,46 @@ export default function WalletPageClient({ initialOrderId }: { initialOrderId: s
       )}
 
       {orderQuery.data && (
-        <Card className="p-5 space-y-4">
+        <Card className="p-5 space-y-4 relative overflow-hidden">
+          {uiStatus !== 'idle' && (
+            <div className={cn(
+              "absolute inset-0 z-50 flex flex-col items-center justify-center transition-all duration-300",
+              uiStatus === 'processing' ? "bg-accent text-accent-foreground" : "bg-background"
+            )}>
+              {uiStatus === 'processing' && (
+                <>
+                  <Loader2 className="h-12 w-12 animate-spin mb-4" />
+                  <h3 className="text-xl font-semibold">Processando...</h3>
+                </>
+              )}
+              {uiStatus === 'approved' && (
+                <>
+                  <CheckCircle2 className="h-16 w-16 text-accent mb-4" />
+                  <h3 className="text-2xl font-bold text-center px-6">Pagamento aprovado</h3>
+                  <p className="text-muted-foreground mt-2 text-center px-6">Valor em custódia.</p>
+                </>
+              )}
+              {uiStatus === 'released' && (
+                <>
+                  <CheckCircle2 className="h-16 w-16 text-accent mb-4" />
+                  <h3 className="text-2xl font-bold text-center px-6">Pagamento liberado</h3>
+                  <p className="text-muted-foreground mt-2 text-center px-6">Valor enviado ao recebedor.</p>
+                </>
+              )}
+              {uiStatus === 'refunded' && (
+                <>
+                  <XCircle className="h-16 w-16 text-destructive mb-4" />
+                  <h3 className="text-2xl font-bold text-center px-6">Pagamento reembolsado</h3>
+                  <p className="text-muted-foreground mt-2 text-center px-6">O valor foi devolvido ao pagador.</p>
+                </>
+              )}
+            </div>
+          )}
+
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Status</p>
-              <Badge variant={variant}>{status}</Badge>
+              <Badge variant={variant}>{status ? orderStatusLabel(status) : '-'}</Badge>
             </div>
             <div className="text-3xl font-bold tracking-tight">{formatBRL(orderQuery.data.amount_cents)}</div>
           </div>
@@ -134,7 +181,7 @@ export default function WalletPageClient({ initialOrderId }: { initialOrderId: s
           <div className="grid grid-cols-2 gap-3">
             <div className="ventra-card p-4">
               <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">Charge</p>
-              <p className="mt-2 text-sm font-semibold">{charge?.status ?? '-'}</p>
+              <p className="mt-2 text-sm font-semibold">{charge?.status ? chargeStatusLabel(charge.status) : '-'}</p>
             </div>
             <div className="ventra-card p-4">
               <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">Expira</p>
@@ -232,15 +279,18 @@ export default function WalletPageClient({ initialOrderId }: { initialOrderId: s
         <section className="space-y-3">
           <p className="text-xs uppercase tracking-[0.32em] text-muted-foreground">Ledger</p>
           <Card className="p-5 space-y-3">
-            {ledgerQuery.data.map((entry) => (
-              <div key={entry.id} className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold">{String(entry.type).replace(/_/g, ' ')}</p>
-                  <p className="text-xs text-muted-foreground">{entry.account}</p>
+            {ledgerQuery.data.map((entry) => {
+              const { title } = ledgerEntryLabel(entry.type)
+              return (
+                <div key={entry.id} className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold">{title}</p>
+                    <p className="text-xs text-muted-foreground">{entry.account}</p>
+                  </div>
+                  <p className="text-sm font-semibold">{formatBRL(entry.amount_cents)}</p>
                 </div>
-                <p className="text-sm font-semibold">{formatBRL(entry.amount_cents)}</p>
-              </div>
-            ))}
+              )
+            })}
           </Card>
         </section>
       )}

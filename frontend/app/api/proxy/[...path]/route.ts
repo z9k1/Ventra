@@ -15,7 +15,7 @@ function sanitizeBaseUrl(baseUrl: string) {
 
 async function handler(request: NextRequest, context: HandlerContext) {
   const rawBaseUrl = getHeader(request, 'x-api-base-url') || 'http://localhost:8000'
-  const apiKey = getHeader(request, 'x-api-key') || 'dev-secret'
+  const apiKey = getHeader(request, 'x-api-key') || ''
   const baseUrl = sanitizeBaseUrl(rawBaseUrl)
 
   const target = new URL(`${context.params.path.join('/')}`, `${baseUrl}/`)
