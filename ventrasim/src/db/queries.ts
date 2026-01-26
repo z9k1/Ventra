@@ -177,7 +177,7 @@ export async function upsertOrder(args: UpsertOrderArgs) {
     .insert(ventraSimOrders)
     .values(insertValues)
     .onConflictDoUpdate({
-      target: (table) => [table.env, table.orderId],
+      target: [ventraSimOrders.env, ventraSimOrders.orderId],
       set: updateValues
     })
 }

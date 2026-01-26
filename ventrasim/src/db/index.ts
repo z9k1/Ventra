@@ -7,4 +7,4 @@ if (!databaseUrl) {
 }
 
 export const pool = new Pool({ connectionString: databaseUrl })
-export const db = drizzle(pool)
+export const db = drizzle(pool, { logger: process.env.DRIZZLE_LOG === '1' })
