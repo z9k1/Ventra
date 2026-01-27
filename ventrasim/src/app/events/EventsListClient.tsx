@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 type EventRow = {
   id: string
@@ -45,56 +45,144 @@ type DetailResponse = {
   deltaSeconds: number | null
 }
 
+type RetryResponse = {
+  ok: boolean
+  attempt_number: number
+  status_code: number | null
+  latency_ms: number | null
+  delivery_id: string | null
+}
+
+type RetryFeedback = { type: 'success' | 'error'; text: string }
+
+async function retryWebhookDelivery(env: string, eventId: string) {
+  const response = await fetch('/api/dev/webhooks/retry', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ env, eventId })
+  })
+
+  const payload: unknown = await response.json().catch(() => null)
+
+  if (!response.ok) {
+    const detail =
+      typeof payload === 'object' && payload !== null
+        ? (payload as Record<string, unknown>).error ?? (payload as Record<string, unknown>).detail
+        : null
+    throw new Error(typeof detail === 'string' ? detail : 'Falha ao reenviar o delivery')
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('Resposta inválida do retry')
+  }
+
+  return payload as RetryResponse
+}
+
 export default function EventsListClient({ rows }: { rows: EventRow[] }) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [detail, setDetail] = useState<DetailResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [retryLoading, setRetryLoading] = useState(false)
+  const [nextRetryAllowedAt, setNextRetryAllowedAt] = useState(0)
+  const [retryFeedback, setRetryFeedback] = useState<RetryFeedback | null>(null)
+  const requestIdRef = useRef(0)
 
-  useEffect(() => {
-    if (!selectedId) return
-    let isActive = true
+  const loadDetail = useCallback(async (eventId: string) => {
+    requestIdRef.current += 1
+    const currentRequest = requestIdRef.current
     setLoading(true)
     setError(null)
     setDetail(null)
 
-    fetch(`/api/events/${encodeURIComponent(selectedId)}`)
-      .then(async (res) => {
-        if (!res.ok) {
-          throw new Error('Falha ao carregar detalhes')
-        }
-        return res.json()
-      })
-      .then((data: DetailResponse) => {
-        if (isActive) {
-          setDetail(data)
-        }
-      })
-      .catch((err) => {
-        if (isActive) {
-          setError(err instanceof Error ? err.message : 'Erro inesperado')
-        }
-      })
-      .finally(() => {
-        if (isActive) setLoading(false)
-      })
-
-    return () => {
-      isActive = false
+    try {
+      const response = await fetch(`/api/events/${encodeURIComponent(eventId)}`)
+      if (!response.ok) {
+        throw new Error('Falha ao carregar detalhes')
+      }
+      const payload = (await response.json()) as DetailResponse
+      if (currentRequest === requestIdRef.current) {
+        setDetail(payload)
+      }
+    } catch (err) {
+      if (currentRequest === requestIdRef.current) {
+        setError(err instanceof Error ? err.message : 'Erro inesperado')
+      }
+    } finally {
+      if (currentRequest === requestIdRef.current) {
+        setLoading(false)
+      }
     }
-  }, [selectedId])
+  }, [])
+
+  const closeDrawer = useCallback(() => {
+    requestIdRef.current += 1
+    setSelectedId(null)
+    setDetail(null)
+    setError(null)
+    setLoading(false)
+    setRetryFeedback(null)
+  }, [])
+
+  const handleRetry = useCallback(async () => {
+    if (!detail?.event.eventId || retryLoading) {
+      return
+    }
+    if (Date.now() < nextRetryAllowedAt) {
+      return
+    }
+
+    const env = detail.event.env ?? 'sandbox'
+    const eventId = detail.event.eventId
+    const cooldownUntil = Date.now() + 1500
+    setNextRetryAllowedAt(cooldownUntil)
+    setRetryLoading(true)
+    setRetryFeedback(null)
+
+    try {
+      const payload = await retryWebhookDelivery(env, eventId)
+      const statusText = payload.status_code ?? '—'
+      const latencyText = payload.latency_ms ?? 0
+      setRetryFeedback({
+        type: 'success',
+        text: `Retry sent — attempt #${payload.attempt_number} (status ${statusText}, Δ ${latencyText}ms)`
+      })
+      if (selectedId) {
+        await loadDetail(selectedId)
+      }
+    } catch (err) {
+      setRetryFeedback({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Erro ao executar retry'
+      })
+    } finally {
+      setRetryLoading(false)
+    }
+  }, [detail, loadDetail, nextRetryAllowedAt, retryLoading, selectedId])
+
+  useEffect(() => {
+    if (!selectedId) return
+    loadDetail(selectedId)
+  }, [selectedId, loadDetail])
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key === 'Escape') {
-        setSelectedId(null)
+        closeDrawer()
       }
     }
     if (selectedId) {
       window.addEventListener('keydown', onKey)
       return () => window.removeEventListener('keydown', onKey)
     }
-  }, [selectedId])
+  }, [selectedId, closeDrawer])
+
+  useEffect(() => {
+    if (!retryFeedback) return
+    const timer = setTimeout(() => setRetryFeedback(null), 5000)
+    return () => clearTimeout(timer)
+  }, [retryFeedback])
 
   const detailBadges = useMemo(() => {
     if (!detail) return null
@@ -118,6 +206,10 @@ export default function EventsListClient({ rows }: { rows: EventRow[] }) {
       </div>
     )
   }, [detail])
+
+  const isCoolingDown = Date.now() < nextRetryAllowedAt
+  const canRetry = !!detail?.event.eventId && !retryLoading && !isCoolingDown
+  const retryButtonLabel = retryLoading ? 'Retrying...' : 'Retry delivery'
 
   return (
     <div className="space-y-3">
@@ -164,7 +256,7 @@ export default function EventsListClient({ rows }: { rows: EventRow[] }) {
 
       {selectedId && (
         <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setSelectedId(null)} />
+          <div className="absolute inset-0 bg-black/50" onClick={closeDrawer} />
           <div className="absolute inset-y-0 right-0 w-full max-w-[420px] bg-white shadow-xl p-6 overflow-y-auto">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -174,14 +266,38 @@ export default function EventsListClient({ rows }: { rows: EventRow[] }) {
                 <div className="text-sm text-zinc-500">order_id: {detail?.event.orderId ?? '-'}</div>
                 <div className="text-xs text-zinc-400 break-all">event_id: {selectedId}</div>
               </div>
-              <button
-                type="button"
-                className="text-sm text-zinc-500 hover:text-zinc-700"
-                onClick={() => setSelectedId(null)}
-              >
-                Fechar
-              </button>
+              <div className="flex flex-col items-end gap-2">
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  disabled={!canRetry}
+                  className={`rounded-full px-4 py-2 text-xs font-semibold tracking-[0.3em] transition uppercase border ${
+                    canRetry ? 'border-zinc-900 bg-zinc-900 text-white hover:bg-black' : 'border-zinc-200 bg-zinc-100 text-zinc-500'
+                  }`}
+                >
+                  {retryButtonLabel}
+                </button>
+                <button
+                  type="button"
+                  className="text-sm text-zinc-500 hover:text-zinc-700"
+                  onClick={closeDrawer}
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
+
+            {retryFeedback && (
+              <div
+                className={`mt-4 rounded-xl px-4 py-3 text-sm font-semibold ${
+                  retryFeedback.type === 'success'
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                    : 'bg-rose-50 text-rose-700 border border-rose-100'
+                }`}
+              >
+                {retryFeedback.text}
+              </div>
+            )}
 
             <div className="mt-3">{detailBadges}</div>
 
