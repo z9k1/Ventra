@@ -1,57 +1,61 @@
+---
+
 # Ventra + VentraSim
 
-**Event-driven Pix escrow platform** with a full **merchant simulator** to validate real-world webhook integrations — inspired by Stripe, Adyen and Mercado Pago.
+Plataforma de **escrow com Pix orientada a eventos**, acompanhada de um **merchant simulator** completo para validar integrações reais via webhook — inspirada em soluções como Stripe, Adyen e Mercado Pago.
 
-> This is **not a fake checkout** and **not a mock system**.
-> Ventra exists to prove — technically — that a payment platform can be **integrated, stressed, broken and observed** like a real one.
-
-## What this project demonstrates
-
-This project focuses on **integration realism**, not UI polish or fake flows.
-
-It demonstrates:
-
-* Event-driven payment architecture
-* Escrow state machines (custody → release)
-* **Signed, idempotent webhooks**
-* Delivery retries and latency tracking
-* Failure simulation (offline / timeout)
-* Clear separation between **platform** and **merchant**
-* Observability of events and delivery attempts
-
-All running in **sandbox**, but with **production-grade architectural decisions**.
+> Este projeto **não é um checkout fake** e **não é um mock**.
+> Ele existe para provar, tecnicamente, que o Ventra funciona como uma **plataforma de pagamentos integrável**, resiliente a falhas reais de rede e entrega.
 
 ---
 
-## Architecture overview
+## O que este projeto demonstra
+
+Este projeto foca em **realismo de integração**, não em UI bonita ou fluxos artificiais.
+
+Ele demonstra:
+
+* Arquitetura de pagamentos **orientada a eventos**
+* Fluxos de **escrow** (custódia → liberação)
+* **Webhooks assinados e idempotentes**
+* Retry automático e **retry manual (estilo Stripe)**
+* Observabilidade de latência e tentativas de entrega
+* Simulação de falhas reais (offline / timeout)
+* Separação clara entre **plataforma** e **merchant**
+
+Tudo em ambiente **sandbox**, mas com decisões arquiteturais **aplicáveis em produção**.
+
+---
+
+## Visão geral da arquitetura
 
 ```
-Ventra (Escrow Platform)
+Ventra (Plataforma de Escrow)
         |
-        |  Signed Webhooks (HMAC)
+        |  Webhooks assinados (HMAC)
         v
 VentraSim (Merchant Simulator)
 ```
 
-* Ventra is the **source of truth**
-* VentraSim behaves like a **real merchant integration**
+* O Ventra é a **fonte soberana da verdade**
+* O VentraSim representa uma **integração real de merchant**
 
 ---
 
-## Components
+## Componentes
 
-### Ventra — Escrow Core
+### Ventra — Core de Escrow
 
-Payment / escrow platform.
+Plataforma de pagamentos / escrow.
 
-Responsibilities:
+Responsável por:
 
-* Create escrow orders
-* Simulate Pix payments (sandbox)
-* Maintain the **sovereign ledger**
-* Emit domain events via webhook
+* Criar pedidos de escrow
+* Simular pagamentos Pix (sandbox)
+* Manter o **ledger soberano**
+* Emitir eventos de domínio via webhook
 
-**Tech stack**
+**Stack**
 
 * Python
 * PostgreSQL
@@ -60,86 +64,86 @@ Responsibilities:
 
 ### VentraSim — Merchant Simulator
 
-Official integration client for Ventra.
+Cliente oficial de integração com o Ventra.
 
-Responsibilities:
+Responsável por:
 
-* Create sandbox orders in Ventra
-* Receive signed webhooks
-* Validate HMAC signatures
-* Enforce idempotency by `event_id`
-* Register **every delivery attempt**
-* Simulate delivery failures
-* Expose full event & retry timeline
+* Criar pedidos sandbox no Ventra
+* Receber webhooks assinados
+* Validar assinatura (HMAC SHA256)
+* Garantir idempotência por `event_id`
+* Registrar **todas** as tentativas de entrega
+* Simular falhas reais de delivery
+* Exibir timeline completa de eventos e retries
 
-**Tech stack**
+**Stack**
 
 * Next.js (App Router)
 * Drizzle ORM
 * PostgreSQL
 
-> VentraSim represents how a **real merchant** would integrate with Ventra.
+> O VentraSim simula exatamente como um **merchant real** integraria o Ventra.
 
 ---
 
-## Core design principles
+## Princípios de design
 
-### Events are never discarded
+### Eventos nunca são descartados
 
-* Every webhook is persisted
-* Invalid signatures are **stored, not dropped**
-* Failures are treated as **first-class signals**
+* Todo webhook é persistido
+* Assinaturas inválidas **não são ignoradas**
+* Falhas fazem parte do sistema e precisam ser visíveis
 
-This enables:
+Isso permite:
 
-* Realistic debugging
-* Full audit trails
-* Retry analysis
-
----
-
-### Ledger sovereignty
-
-VentraSim:
-
-* ❌ does not calculate balances
-* ❌ does not derive financial truth
-* ❌ does not override states
-
-Displayed states come from:
-
-* received events
-* or direct reads from Ventra
-
-> Ventra’s ledger is always the final authority.
+* Debug realista
+* Auditoria completa
+* Observação de retries
 
 ---
 
-### Correct idempotency
+### Ledger soberano
 
-* Each event has a unique `event_id`
-* Duplicate events:
+O VentraSim:
 
-  * do **not** create new events
-  * only generate new **delivery attempts**
+* ❌ não calcula saldo
+* ❌ não decide estado financeiro
+* ❌ não “corrige” estados
 
-This allows observing:
+Os estados exibidos vêm:
 
-* automatic retries
-* duplicated deliveries
-* timing gaps between attempts
+* dos eventos recebidos
+* ou de consultas diretas ao Ventra
+
+> O ledger do Ventra é sempre a verdade final.
+
+---
+
+### Idempotência correta
+
+* Cada evento possui `event_id`
+* Eventos duplicados:
+
+  * não criam novos eventos
+  * apenas novas **tentativas de entrega**
+
+Isso permite observar:
+
+* retries automáticos
+* duplicações
+* atrasos entre tentativas
 
 ---
 
 ## Webhooks
 
-### Receiver endpoint
+### Endpoint de recebimento
 
 ```
 POST /api/webhooks/ventra/:env
 ```
 
-Environments:
+Ambientes:
 
 * `local`
 * `sandbox`
@@ -147,144 +151,136 @@ Environments:
 
 ---
 
-### Signature validation
+### Assinatura
 
 * Header: `X-Signature`
-* Algorithm: `HMAC-SHA256`
-* Payload: **raw request body**
+* Algoritmo: `HMAC-SHA256`
+* Payload: **raw body**
 
-Rules:
+Regras:
 
-* Constant-time comparison
-* Events are persisted even if signature fails
-* Invalid events are flagged as **SIG FAIL** in the UI
-
----
-
-## Delivery failure simulation
-
-VentraSim can simulate real network conditions:
-
-| Mode    | Behavior                            |
-| ------- | ----------------------------------- |
-| normal  | Responds `200 OK`                   |
-| offline | Immediate `503 Service Unavailable` |
-| timeout | Delayed response until timeout      |
-
-Each delivery attempt records:
-
-* attempt number
-* latency
-* failure mode
-* endpoint snapshot
-
-This allows validating:
-
-* retry behavior
-* backoff strategies
-* integration resilience
+* Comparação em constant-time
+* Evento salvo mesmo se a assinatura falhar
+* Eventos inválidos aparecem como **SIG FAIL** na UI
 
 ---
 
-## Manual retry (Stripe-like)
+## Simulação de falhas de entrega
 
-VentraSim supports **manual webhook retries**:
+O VentraSim permite simular comportamentos reais de rede:
 
-* Re-delivers the original event payload
-* Re-signs using the active endpoint secret
-* Creates a new delivery attempt
-* Preserves idempotency (no duplicated events)
+| Modo    | Comportamento                   |
+| ------- | ------------------------------- |
+| normal  | Responde `200 OK`               |
+| offline | Responde `503` imediatamente    |
+| timeout | Segura a resposta até o timeout |
 
-Returned metadata includes:
+Cada tentativa registra:
 
-* attempt number
-* status code
-* latency
-* delivery ID
+* número da tentativa
+* latência real
+* modo ativo no momento
+* snapshot do endpoint
 
 ---
 
-## User interface
+## Retry manual (estilo Stripe)
+
+O VentraSim suporta **retry manual de webhooks**:
+
+* Reenvia o payload original
+* Reassina com a secret do endpoint ativo
+* Cria nova tentativa de entrega
+* Mantém idempotência (evento não duplica)
+
+Metadados retornados:
+
+* número da tentativa
+* status HTTP
+* latência
+* `delivery_id`
+
+---
+
+## Interface (UX)
 
 ### `/events`
 
-Event timeline showing:
+Timeline de eventos com:
 
-* event type (e.g. `charge.created`)
+* tipo do evento (ex: `charge.created`)
 * `order_id`
-* delivery badges:
+* badges:
 
   * `SIG OK / SIG FAIL`
   * `RETRY N`
-  * `Δ +Xs` (delivery delay)
+  * `Δ +Xs`
 
 ---
 
-### Event drawer
+### Drawer de evento
 
-Clicking an event opens a detailed view with:
+Ao clicar em um evento:
 
 * payload (JSON)
-* signed headers
-* delivery timeline with attempts
-* manual retry action
+* headers assinados
+* timeline de tentativas
+* botão de retry manual
 
-Inspired directly by the **Stripe Dashboard**.
+Inspirado diretamente no **Stripe Dashboard**.
 
 ---
 
 ### `/orders`
 
-* List of orders created in Ventra
-* Status updates driven exclusively by webhooks
+* Lista de pedidos criados no Ventra
+* Status atualizado exclusivamente via webhooks
 
 ### `/orders/[orderId]`
 
-* Order detail page
-* State reflects Ventra’s ledger, not UI assumptions
+* Detalhes do pedido
+* Estado refletindo o ledger do Ventra
 
 ---
 
-## End-to-end flow (validated)
+## Fluxo end-to-end validado
 
-1. Create order in VentraSim
-2. Ventra creates sandbox escrow
-3. Payment and release simulated
-4. Ventra emits webhook events
-5. VentraSim receives and validates them
-6. UI reflects the real order state
-
----
-
-## Out of scope (by design)
-
-This project intentionally does **not** include:
-
-* ❌ Real Pix integration
-* ❌ Marketplace features
-* ❌ Financial dashboards
-* ❌ Advanced analytics
-* ❌ Multi-merchant SaaS setup
-
-Those belong to a **product**, not a technical simulator.
+1. Criar pedido no VentraSim
+2. Ventra cria escrow sandbox
+3. Pagamento e liberação simulados
+4. Ventra emite eventos via webhook
+5. VentraSim recebe e valida
+6. UI reflete o estado real
 
 ---
 
-## Project status
+## Fora do escopo (intencionalmente)
 
-✔️ End-to-end flow validated
-✔️ Manual retry implemented
-✔️ Failure simulation working
-✔️ Architecture ready to evolve
+* ❌ Pix real
+* ❌ Marketplace
+* ❌ Analytics avançado
+* ❌ Dashboard financeiro
+* ❌ Multi-merchant SaaS
+
+Esses pontos pertencem a um **produto comercial**, não a um simulador técnico.
 
 ---
 
-## Final note
+## Status do projeto
 
-Ventra + VentraSim exist to prove one thing:
+✔️ Fluxo completo validado
+✔️ Retry manual implementado
+✔️ Simulação de falhas funcional
+✔️ Arquitetura pronta para evoluir
 
-> A payment platform is only real when someone can integrate it, break it, retry it — and understand exactly what happened.
+---
 
-This project focuses on that reality.
+## Conclusão
+
+O Ventra + VentraSim existem para provar que:
+
+> Uma plataforma de pagamentos só é real quando alguém consegue integrá-la, quebrá-la, fazer retry e entender exatamente o que aconteceu.
+
+Este projeto foca exatamente nisso.
 
 ---
