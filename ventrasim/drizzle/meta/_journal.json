@@ -8,6 +8,41 @@
       "when": 1769388363770,
       "tag": "0000_spicy_ultimates",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1769388364770,
+      "tag": "0001_init",
+      "breakpoints": false
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1769388365770,
+      "tag": "0002_add_failure_simulation",
+      "breakpoints": false
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1769388366770,
+      "tag": "0003_add_orders_table",
+      "breakpoints": false
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1769388367770,
+      "tag": "0004_create_ventrasim_orders_table",
+      "breakpoints": false
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1769388368770,
+      "tag": "0005_merchant_settings",
+      "breakpoints": false
     }
   ]
 }
