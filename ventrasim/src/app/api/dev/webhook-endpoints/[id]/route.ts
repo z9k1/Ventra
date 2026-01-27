@@ -1,6 +1,5 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
-
 import { db } from '@/db/index'
 import { webhookEndpoints } from '@/db/schema'
 import { isWebhookEnv, serializeWebhookEndpoint } from '../utils'
