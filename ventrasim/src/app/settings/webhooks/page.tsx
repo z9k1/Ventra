@@ -355,7 +355,11 @@ export default function WebhooksSettingsPage() {
 
       {modalState?.mode === 'edit' && modalState.endpoint && (
         <ModalShell title="Edit webhook endpoint" onClose={closeModal}>
-          <EditEndpointForm endpoint={modalState.endpoint} onClose={closeModal} onSubmit={handleEdit} />
+          <EditEndpointForm 
+            endpoint={modalState.endpoint} 
+            onClose={closeModal} 
+            onSubmit={(payload) => handleEdit(modalState.endpoint.id, payload)} 
+          />
         </ModalShell>
       )}
     </main>
