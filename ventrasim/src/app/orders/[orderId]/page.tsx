@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
 
 import EventsListClient from '@/app/events/EventsListClient'
 import CopyButton from '@/app/orders/components/CopyButton'
@@ -25,14 +24,32 @@ export default async function OrderDetailPage({
   params,
   searchParams
 }: {
-  params: { orderId: string }
-  searchParams?: { env?: string }
+  params: Promise<{ orderId: string }>
+  searchParams?: Promise<{ env?: string }>
 }) {
-  const requestedEnv = (searchParams?.env ?? '') as string
+  const resolvedParams = await params
+  const sp = (await searchParams) ?? {}
+  const requestedEnv = (sp.env ?? '') as string
   const envFilter = allowedEnvs.includes(requestedEnv as OrderEnv) ? (requestedEnv as OrderEnv) : undefined
-  const order = await getOrderById(params.orderId, envFilter)
+  const orderId = resolvedParams.orderId
+  const order = await getOrderById(orderId, envFilter)
   if (!order) {
-    return notFound()
+    return (
+      <main className="p-6 max-w-4xl mx-auto space-y-4">
+        <h1 className="text-2xl font-bold text-zinc-900">Pedido não encontrado</h1>
+        <p className="text-sm text-zinc-500">
+          Não encontramos este pedido no cache local. Tente novamente após novos webhooks ou verifique o ID.
+        </p>
+        <div className="flex flex-wrap gap-3 text-xs font-semibold uppercase tracking-[0.3em]">
+          <Link href="/orders" className="text-blue-600">
+            Voltar para orders
+          </Link>
+          <Link href={`/events?orderId=${orderId}`} className="text-blue-600">
+            Ver eventos deste pedido
+          </Link>
+        </div>
+      </main>
+    )
   }
 
   const events = await listEventsByOrderId(order.orderId)

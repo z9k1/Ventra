@@ -88,6 +88,37 @@ function pickNumber(payload: any, ...keys: string[]) {
   return null
 }
 
+function resolveEventType(payload: any) {
+  if (typeof payload?.type === 'string' && payload.type) return payload.type
+  if (typeof payload?.event === 'string' && payload.event) return payload.event
+  if (typeof payload?.event?.type === 'string' && payload.event.type) return payload.event.type
+  return 'unknown'
+}
+
+async function upsertOrderFromWebhook(payload: any, env: OrderEnv, eventType: string) {
+  const orderId = extractOrderId(payload)
+  if (!orderId || orderId === 'unknown') return
+
+  const derivedStatus = deriveOrderStatusFromEvent(eventType)
+  if (!derivedStatus) return
+
+  const dataSection = getPayloadData(payload)
+  const amount = pickNumber(dataSection, 'amount_cents', 'amount')
+  const currency = pickString(dataSection, 'currency') ?? undefined
+  const chargeId = pickString(dataSection, 'charge_id', 'chargeId') ?? undefined
+  const txid = pickString(dataSection, 'txid', 'txId') ?? undefined
+
+  await upsertOrder({
+    env,
+    orderId,
+    status: derivedStatus,
+    amount: amount ?? null,
+    currency,
+    chargeId,
+    txid
+  })
+}
+
 export async function POST(request: NextRequest, { params }: { params: Promise<{ env: string }> }) {
   const start = Date.now()
   const { env } = await params
@@ -120,10 +151,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const eventId = typeof payload?.id === 'string' && payload.id ? payload.id : fallbackEventId(rawBody)
-  const eventType =
-  (typeof payload?.type === 'string' && payload.type) ||
-  (typeof payload?.event === 'string' && payload.event) ||
-  'unknown'
+  const eventType = resolveEventType(payload)
   const orderId = extractOrderId(payload)
   const eventTimestamp = parseEventTimestamp(payload?.created_at)
   const receivedAt = new Date()
@@ -150,20 +178,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       headersJson
     })
 
-    const effectiveOrderId = orderId === 'unknown' ? null : orderId
-    const derivedStatus = deriveOrderStatusFromEvent(eventType)
-    if (effectiveOrderId && derivedStatus) {
-      const dataSection = getPayloadData(payload)
-      await upsertOrder({
-        env: resolvedEnv as OrderEnv,
-        orderId: effectiveOrderId,
-        status: derivedStatus,
-        amount: pickNumber(dataSection, 'amount_cents', 'amount'),
-        currency: pickString(dataSection, 'currency'),
-        chargeId: pickString(dataSection, 'charge_id', 'chargeId'),
-        txid: pickString(dataSection, 'txid', 'txId')
-      })
-    }
+    await upsertOrderFromWebhook(payload, resolvedEnv as OrderEnv, eventType)
 
     const attemptNumber = await getNextAttemptNumber(eventId)
 

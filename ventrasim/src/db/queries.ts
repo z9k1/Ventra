@@ -143,24 +143,13 @@ type UpsertOrderArgs = {
 
 export async function upsertOrder(args: UpsertOrderArgs) {
   const now = new Date()
-  const insertValues = {
-    env: args.env,
-    orderId: args.orderId,
-    amount: args.amount ?? null,
-    currency: args.currency ?? 'BRL',
-    status: args.status,
-    chargeId: args.chargeId ?? null,
-    txid: args.txid ?? null,
-    createdAt: now,
-    updatedAt: now
-  }
-
   const updateValues: Record<string, unknown> = {
     status: args.status,
     updatedAt: now
   }
+  const hasAmount = typeof args.amount === 'number'
 
-  if (args.amount !== undefined) {
+  if (hasAmount) {
     updateValues.amount = args.amount
   }
   if (args.currency) {
@@ -171,6 +160,26 @@ export async function upsertOrder(args: UpsertOrderArgs) {
   }
   if (args.txid !== undefined) {
     updateValues.txid = args.txid
+  }
+
+  if (!hasAmount) {
+    await db
+      .update(ventraSimOrders)
+      .set(updateValues)
+      .where(and(eq(ventraSimOrders.env, args.env), eq(ventraSimOrders.orderId, args.orderId)))
+    return
+  }
+
+  const insertValues = {
+    env: args.env,
+    orderId: args.orderId,
+    amount: args.amount,
+    currency: args.currency ?? 'BRL',
+    status: args.status,
+    chargeId: args.chargeId ?? null,
+    txid: args.txid ?? null,
+    createdAt: now,
+    updatedAt: now
   }
 
   await db
@@ -206,7 +215,12 @@ export async function listOrders({ env, limit = 50 }: { env?: OrderEnv; limit?: 
 }
 
 export async function getOrderById(orderId: string, env?: OrderEnv) {
-  let query = db
+  const conditions = [eq(ventraSimOrders.orderId, orderId)]
+  if (env) {
+    conditions.push(eq(ventraSimOrders.env, env))
+  }
+
+  const rows = await db
     .select({
       id: ventraSimOrders.id,
       env: ventraSimOrders.env,
@@ -219,14 +233,9 @@ export async function getOrderById(orderId: string, env?: OrderEnv) {
       createdAt: ventraSimOrders.createdAt,
       updatedAt: ventraSimOrders.updatedAt
     })
-      .from(ventraSimOrders)
-    .where(eq(ventraSimOrders.orderId, orderId))
-
-  if (env) {
-    query = query.where(eq(ventraSimOrders.env, env))
-  }
-
-  const rows = await query.limit(1)
+    .from(ventraSimOrders)
+    .where(and(...conditions))
+    .limit(1)
   return rows[0] ?? null
 }
 

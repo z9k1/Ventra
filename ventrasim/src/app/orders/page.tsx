@@ -21,9 +21,10 @@ const formatCurrency = (amount?: number | null) => {
 export default async function OrdersPage({
   searchParams
 }: {
-  searchParams?: { env?: string }
+  searchParams?: Promise<{ env?: string }>
 }) {
-  const selectedEnv = (searchParams?.env ?? '') as string
+  const sp = (await searchParams) ?? {}
+  const selectedEnv = (sp.env ?? '') as string
   const envFilter = allowedEnvs.includes(selectedEnv as OrderEnv) ? (selectedEnv as OrderEnv) : undefined
   const orders = await listOrders({ env: envFilter, limit: 200 })
 
@@ -106,7 +107,7 @@ export default async function OrdersPage({
                 <td className="px-4 py-3 text-xs uppercase tracking-[0.2em] text-zinc-500">{order.env}</td>
                 <td className="px-4 py-3">
                   <Link
-                    href={`/orders/${order.orderId}`}
+                    href={`/orders/${order.orderId}${envFilter ? `?env=${envFilter}` : ''}`}
                     className="text-xs font-semibold text-blue-600 underline"
                   >
                     View
