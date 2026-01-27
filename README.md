@@ -285,4 +285,9 @@ Este projeto foca exatamente nisso.
 
 ---
 <img width="427" height="958" alt="image" src="https://github.com/user-attachments/assets/7669f550-8708-4be9-92f8-969978944681" />
+<img width="1866" height="959" alt="image" src="https://github.com/user-attachments/assets/5968ef04-bff5-46c2-a1d8-fb620031ea36" />
+<img width="426" height="958" alt="image" src="https://github.com/user-attachments/assets/6028763f-d1e5-4682-b325-2e1da7ba5e0c" />
+<img width="1863" height="966" alt="image" src="https://github.com/user-attachments/assets/1723de1d-df21-487c-a949-09a73fdfc662" />
+
+
 
