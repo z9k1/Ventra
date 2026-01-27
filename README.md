@@ -1,220 +1,241 @@
-﻿# Ventra Monorepo
+# Ventra + VentraSim
 
-Este repositorio contem tres apps:
+Sistema de **escrow com Pix** orientado a eventos, acompanhado de um **merchant simulator** completo para validar integrações reais via webhook — inspirado em plataformas como Stripe, Adyen e Mercado Pago.
 
-- Escrow Pix API (backend): FastAPI + Postgres com ledger append-only.
-- Ventra Frontend: Next.js (UI estilo Ventra) para operar pedidos/escrow.
-- VentraSim: Next.js (Merchant Simulator) para receber e auditar webhooks do Ventra.
+> Este projeto **não é um checkout fake** e **não é um mock**.
+> Ele existe para provar, tecnicamente, que o Ventra funciona como **plataforma de pagamentos integrável**, resiliente a falhas reais de rede e entrega.
 
-## Visao geral
+---
 
-Fluxo principal (sandbox):
+## 🎯 Objetivo do projeto
 
-1) Criar Order com valor.
-2) Gerar Charge Pix com expiracao (default 15 min).
-3) Simular pagamento (sandbox) para confirmar pagamento.
-4) Fundos ficam em custodia (escrow) e podem ser liberados ao merchant ou reembolsados ao customer.
+O Ventra foi criado para estudar e demonstrar:
 
-Regras principais:
+- Arquitetura de **pagamentos orientada a eventos**
+- Fluxos de **escrow** (custódia → liberação)
+- **Webhooks assinados**, idempotentes e tolerantes a falhas
+- Separação clara entre **plataforma** e **merchant**
+- Observabilidade de eventos, retries e latência
 
-- Ledger append-only: saldo e derivado do ledger, nunca atualizado diretamente.
-- Maquina de estados rigida para Order e Charge.
-- Idempotencia via header `Idempotency-Key` em POST criticos.
-- Webhooks assinados com HMAC SHA-256.
+Tudo isso em ambiente **sandbox**, mas com decisões arquiteturais **100% aplicáveis em produção**.
 
-## Requisitos
+---
 
-- Python 3.11+
-- Docker Desktop (Postgres)
-- Node + pnpm (frontend Ventra)
-- Node + npm (VentraSim)
+## 🧩 Componentes
 
-## 1) Banco (Postgres)
+### Ventra (core)
+Plataforma de pagamentos / escrow.
 
-Na raiz do repo:
+Responsável por:
+- Criar pedidos de escrow
+- Processar pagamento Pix (sandbox)
+- Manter o **ledger soberano**
+- Emitir eventos via webhook
 
-```bash
-docker compose up -d
+**Stack:**
+- Python
+- PostgreSQL
+
+---
+
+### VentraSim (merchant simulator)
+Cliente oficial de integração com o Ventra.
+
+Responsável por:
+- Criar pedidos sandbox no Ventra
+- Receber webhooks assinados
+- Validar assinatura (HMAC SHA256)
+- Registrar eventos e tentativas de entrega
+- Simular falhas reais de entrega
+- Exibir timeline completa de eventos
+
+**Stack:**
+- Next.js (App Router)
+- Drizzle ORM
+- PostgreSQL
+
+> O VentraSim representa como um **merchant real** integraria o Ventra.
+
+---
+
+## 🧠 Filosofia de design
+
+### Eventos são a fonte da verdade
+
+- Eventos **nunca são descartados**
+- Mesmo eventos com assinatura inválida são salvos
+- Falhas fazem parte do sistema e precisam ser visíveis
+
+Isso permite:
+- Debug realista
+- Auditoria
+- Observação de retries
+
+---
+
+### Ledger soberano
+
+O VentraSim:
+- ❌ não calcula dinheiro
+- ❌ não mantém saldo próprio
+- ❌ não decide estado financeiro
+
+Estados exibidos vêm de:
+- eventos recebidos
+- ou consultas ao Ventra
+
+> O ledger do Ventra é sempre a verdade final.
+
+---
+
+### Idempotência correta
+
+- Cada evento possui `event_id`
+- Eventos duplicados:
+  - não criam novo evento
+  - apenas registram nova tentativa (retry)
+
+Isso permite observar:
+- retries automáticos
+- duplicações
+- atrasos entre tentativas
+
+---
+
+## 🔐 Webhooks
+
+### Endpoint
+
+```
+POST /api/webhooks/ventra/:env
 ```
 
-Container default: `apidepagamento-db-1` em `localhost:5432`.
+Ambientes:
+- local
+- sandbox
+- staging
 
-## 2) Backend (Escrow Pix API)
+---
 
-### Config
+### Assinatura
 
-Crie `.env` na raiz (copie de `.env.example`):
+- Header: `X-Signature`
+- Algoritmo: `HMAC-SHA256`
+- Payload usado: **raw body**
 
-- `DATABASE_URL=postgresql+psycopg2://escrow:escrow@localhost:5432/escrow`
-- `API_KEY=<your-secret>`
-- `ENV=sandbox`
+Regras:
+- Comparação em constant-time
+- Evento é salvo mesmo se a assinatura falhar
+- Eventos inválidos aparecem como **SIG FAIL** na UI
 
-No PowerShell, pode exportar so para a sessao:
+---
 
-```powershell
-$env:DATABASE_URL="postgresql+psycopg2://escrow:escrow@localhost:5432/escrow"
-$env:API_KEY="<your-secret>"
-$env:ENV="sandbox"
-```
+## 🧪 Simulação de falhas
 
-### Migrations
+O VentraSim permite simular comportamentos reais de delivery:
 
-```powershell
-python -m alembic upgrade head
-```
+- **normal** → responde `200`
+- **offline** → responde `503` imediatamente
+- **timeout** → segura a resposta até o cliente estourar timeout
 
-### Rodar API
+Cada tentativa gera:
+- registro próprio
+- latência real
+- modo usado no momento
 
-```powershell
-uvicorn app.main:app --reload
-```
+Isso permite validar:
+- comportamento de retry do Ventra
+- backoff
+- resiliência da integração
 
-Docs: `http://localhost:8000/docs`
+---
 
-### Endpoints principais
+## 🖥️ Interface (UX)
 
-Auth: `X-API-KEY: <API_KEY>`
+### Tela `/events`
 
-- POST `/orders` { amount_cents, currency }
-- GET `/orders/{order_id}`
-- POST `/orders/{order_id}/charges/pix`
-- POST `/charges/{charge_id}/simulate-paid` (sandbox only)
-- POST `/charges/{charge_id}/cancel`
-- POST `/orders/{order_id}/release`
-- POST `/orders/{order_id}/refund`
-- GET `/orders/{order_id}/ledger`
-- GET `/balance`
+Timeline de eventos com:
+- tipo do evento (ex: `charge.paid`)
+- `order_id`
+- badges:
+  - `SIG OK` / `SIG FAIL`
+  - `RETRY N`
+  - `Δ +Xs` (delay)
 
-Idempotencia: envie `Idempotency-Key` em POST criticos.
+---
 
-## 3) Frontend Ventra (UI)
+### Drawer de detalhes
 
-### Rodar
+Ao clicar em um evento:
 
-```powershell
-cd frontend
-pnpm install
-pnpm dev
-```
+- resumo
+- payload (JSON)
+- headers assinados
+- timeline de tentativas
 
-### Configuracao
+Inspirado diretamente no **Stripe Dashboard**.
 
-Abra `http://localhost:3000/settings` e configure:
+---
 
-- `API_BASE_URL`: `http://localhost:8000`
-- `API_KEY`: `<your-secret>`
+### Tela `/orders`
 
-A UI usa `/api/proxy` para evitar CORS.
+- Lista pedidos criados no Ventra
+- Status atualizado automaticamente via webhook
 
-### Demo flow
+### Tela `/orders/[orderId]`
 
-1) `+ Novo Deposito`
-2) Confirma valor -> cria Order e Charge Pix
-3) Simular pagamento
-4) Release ou Refund
-5) Ver saldo e ledger
+- Detalhes do pedido
+- Estado refletindo o ledger do Ventra
 
-## 4) Ventra → VentraSim Webhooks
+---
 
-O backend do Ventra dispara automaticamente os eventos (`order.paid_in_escrow`, `payment.paid`, `order.released`, `order.refunded`, etc.) sempre que o estado do order muda. Para ativar basta configurar duas variáveis de ambiente no `.env`:
+## 🔁 Fluxo end-to-end validado
 
-```dotenv
-WEBHOOK_URL=http://localhost:3001/api/webhooks/ventra/sandbox
-WEBHOOK_SECRET=dev-webhook-secret
-```
+1. Criar pedido no VentraSim
+2. Ventra cria escrow sandbox
+3. Pagamento e liberação simulados
+4. Ventra emite webhooks
+5. VentraSim recebe eventos
+6. UI reflete estado real do pedido
 
-Se o Ventra estiver rodando dentro de Docker, substitua `localhost` por `host.docker.internal` para que o container consiga alcançar o VentraSim (`http://host.docker.internal:3001/api/webhooks/ventra/sandbox`).
+---
 
-Com essa configuração o FastAPI registra logs como `sending webhook payment.paid to ...`, permitindo confirmar no console que o callback foi disparado. A assinatura HMAC é calculada com o valor de `WEBHOOK_SECRET`, então mantenha o mesmo valor na tabela `webhook_endpoints` da VentraSim (`env = sandbox`).
+## 🚀 Próximos passos (fora do MVP)
 
-Você pode inspecionar a subscription ativa diretamente no Postgres:
+- Merchant settings completo
+- Múltiplos endpoints e secrets
+- Retry manual
+- Analytics de entrega
+- Release / refund via UI
 
-```powershell
-docker exec -i apidepagamento-db-1 psql -U escrow -d escrow -c "select url, secret, is_enabled from webhook_subscriptions;"
-```
+Essas evoluções serão consideradas **após** o MVP estar sólido.
 
-O registro é criado automaticamente no startup do `uvicorn app.main:app` sempre que `WEBHOOK_URL`/`WEBHOOK_SECRET` estiverem definidos.
+---
 
-## 5) VentraSim (Webhook Receiver)
+## ⚠️ O que este projeto NÃO é
 
-### Config
+- ❌ Marketplace real
+- ❌ Pix real
+- ❌ Painel financeiro completo
+- ❌ Sistema de analytics avançado
 
-VentraSim usa o mesmo Postgres do docker-compose. Defina `DATABASE_URL`:
+Esses pontos estão **fora do escopo propositalmente**.
 
-```powershell
-$env:DATABASE_URL="postgresql://escrow:escrow@localhost:5432/escrow"
-```
+---
 
-### Rodar
+## 🧪 Status
 
-```powershell
-cd ventrasim
-npm install
-npm run dev
-```
+✔️ MVP funcional
+✔️ Fluxo completo validado
+✔️ Arquitetura pronta para evoluir
 
-### Schema (VentraSim)
+---
 
-As tabelas sao:
+## 🏁 Conclusão
 
-- `webhook_endpoints`
-- `webhook_events`
-- `webhook_deliveries`
+O Ventra + VentraSim existem para provar que:
 
-Se precisar aplicar o SQL gerado (nao via migrations automaticas):
+> Uma plataforma de pagamentos só é real quando alguém consegue integrá-la, quebrá-la e observá-la.
 
-```powershell
-docker cp "D:\api de pagamento\ventrasim\drizzle\0000_spicy_ultimates.sql" apidepagamento-db-1:/var/lib/postgresql/data/0000_spicy_ultimates.sql
-docker exec -i apidepagamento-db-1 psql -U escrow -d escrow -f /var/lib/postgresql/data/0000_spicy_ultimates.sql
-```
+Este projeto foca exatamente nisso.
 
-### Cadastrar secret do webhook
-
-```powershell
-docker exec -i apidepagamento-db-1 psql -U escrow -d escrow -c "insert into webhook_endpoints (env, secret, is_active) values ('sandbox','<your-secret>',true) on conflict (env) do update set secret = excluded.secret, is_active = true;"
-```
-
-### Endpoint de recebimento
-
-`POST /api/webhooks/ventra/[env]` onde `env` = `local|sandbox|staging`
-
-- Usa raw body para assinatura HMAC SHA-256
-- Salva sempre em `webhook_events` (idempotente por `event_id`)
-- Salva tentativas em `webhook_deliveries`
-- Responde sempre `200 { ok: true }`
-
-### Enviar webhook (PowerShell)
-
-```powershell
-$payload='{"id":"evt_003","type":"order.paid","created_at":"2026-01-25T18:00:00Z","order_id":"ord_123"}'
-$secret='<your-secret>'
-$hmac = New-Object System.Security.Cryptography.HMACSHA256
-$hmac.Key = [System.Text.Encoding]::UTF8.GetBytes($secret)
-$hashBytes = $hmac.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($payload))
-$signature = ($hashBytes | ForEach-Object { $_.ToString('x2') }) -join ''
-
-Invoke-WebRequest -UseBasicParsing -Uri "http://localhost:3001/api/webhooks/ventra/sandbox" `
-  -Method POST `
-  -ContentType "application/json" `
-  -Headers @{ "X-Signature" = $signature } `
-  -Body $payload
-```
-
-### Ver eventos no banco
-
-```powershell
-docker exec -i apidepagamento-db-1 psql -U escrow -d escrow -c "select id, event_id, env, event_type, order_id, signature_ok, received_at, delta_ms from webhook_events order by received_at desc limit 5;"
-docker exec -i apidepagamento-db-1 psql -U escrow -d escrow -c "select id, event_id, attempt_number, status, received_at from webhook_deliveries order by received_at desc limit 5;"
-```
-
-### UI de eventos (VentraSim)
-
-- `http://localhost:3001/events`
-- Lista eventos e abre drawer com payload/headers/timeline.
-
-## Troubleshooting
-
-- `alembic` nao reconhecido: use `python -m alembic ...`
-- Erro `psycopg` no Windows: use `psycopg2-binary` e URL `postgresql+psycopg2://...`
-- Porta 3000 em uso: Next muda para 3001/3002 (ver log)
-- Webhook sem gravar: confirme `DATABASE_URL` no mesmo terminal do `npm run dev`
