@@ -1,13 +1,9 @@
----
-
 # Ventra + VentraSim
 
 **Event-driven Pix escrow platform** with a full **merchant simulator** to validate real-world webhook integrations — inspired by Stripe, Adyen and Mercado Pago.
 
 > This is **not a fake checkout** and **not a mock system**.
 > Ventra exists to prove — technically — that a payment platform can be **integrated, stressed, broken and observed** like a real one.
-
----
 
 ## What this project demonstrates
 
