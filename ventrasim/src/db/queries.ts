@@ -6,6 +6,8 @@ import { ventraSimOrders, webhookDeliveries, webhookEndpoints, webhookEvents } f
 export async function getEndpointConfig(env: 'local' | 'sandbox' | 'staging') {
   const rows = await db
     .select({
+      id: webhookEndpoints.id,
+      url: webhookEndpoints.url,
       secret: webhookEndpoints.secret,
       deliveryMode: webhookEndpoints.deliveryMode,
       timeoutMs: webhookEndpoints.timeoutMs
@@ -25,7 +27,8 @@ export async function updateEndpointMode(args: {
     .update(webhookEndpoints)
     .set({
       deliveryMode: args.deliveryMode,
-      timeoutMs: args.timeoutMs
+      timeoutMs: args.timeoutMs,
+      updatedAt: new Date()
     })
     .where(eq(webhookEndpoints.env, args.env))
 }
@@ -80,6 +83,8 @@ export async function insertWebhookDelivery(args: {
   errorMessage?: string | null
   modeUsed?: string | null
   latencyMs?: number | null
+  endpointId?: number | null
+  endpointUrlSnapshot?: string | null
 }) {
   await db.insert(webhookDeliveries).values({
     eventId: args.eventId,
@@ -87,7 +92,9 @@ export async function insertWebhookDelivery(args: {
     status: args.status,
     errorMessage: args.errorMessage ?? null,
     modeUsed: args.modeUsed ?? null,
-    latencyMs: args.latencyMs ?? null
+    latencyMs: args.latencyMs ?? null,
+    endpointId: args.endpointId ?? null,
+    endpointUrlSnapshot: args.endpointUrlSnapshot ?? null
   })
 }
 
@@ -122,6 +129,8 @@ export async function listDeliveriesByEventId(eventId: string) {
       errorMessage: webhookDeliveries.errorMessage,
       modeUsed: webhookDeliveries.modeUsed,
       latencyMs: webhookDeliveries.latencyMs,
+      endpointId: webhookDeliveries.endpointId,
+      endpointUrlSnapshot: webhookDeliveries.endpointUrlSnapshot,
       receivedAt: webhookDeliveries.receivedAt
     })
     .from(webhookDeliveries)

@@ -3,12 +3,16 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TYPE "ventra_env" AS ENUM ('local', 'sandbox', 'staging');
 
 CREATE TABLE IF NOT EXISTS "webhook_endpoints" (
-  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  "env" "ventra_env" NOT NULL UNIQUE,
+  "id" serial PRIMARY KEY,
+  "env" text NOT NULL,
+  "url" text NOT NULL,
   "secret" text NOT NULL,
-  "is_active" boolean NOT NULL DEFAULT true,
-  "created_at" timestamptz NOT NULL DEFAULT now()
+  "is_active" boolean NOT NULL DEFAULT false,
+  "created_at" timestamptz NOT NULL DEFAULT now(),
+  "updated_at" timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS "webhook_endpoints_env_active_key" ON "webhook_endpoints" ("env") WHERE "is_active";
 
 CREATE TABLE IF NOT EXISTS "webhook_events" (
   "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),

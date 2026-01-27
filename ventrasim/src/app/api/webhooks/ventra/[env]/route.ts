@@ -189,7 +189,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         attemptNumber,
         status: '503',
         modeUsed: 'offline',
-        latencyMs
+        latencyMs,
+        endpointId: config?.id ?? null,
+        endpointUrlSnapshot: config?.url ?? null
       })
       return NextResponse.json({ ok: false, simulated: 'offline' }, { status: 503 })
     }
@@ -202,7 +204,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         attemptNumber,
         status: '200',
         modeUsed: 'timeout',
-        latencyMs
+        latencyMs,
+        endpointId: config?.id ?? null,
+        endpointUrlSnapshot: config?.url ?? null
       })
       return NextResponse.json({ ok: true, simulated: 'timeout' }, { status: 200 })
     }
@@ -214,7 +218,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       attemptNumber,
       status: '200',
       modeUsed: 'normal',
-      latencyMs
+      latencyMs,
+      endpointId: config?.id ?? null,
+      endpointUrlSnapshot: config?.url ?? null
     })
     console.log('[ventrasim] webhook stored', {
       env: resolvedEnv,

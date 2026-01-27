@@ -1,17 +1,19 @@
-import { boolean, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { boolean, index, integer, jsonb, pgEnum, pgTable, serial, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 
 export const envEnum = pgEnum('ventra_env', ['local', 'sandbox', 'staging'])
 
 export const webhookEndpoints = pgTable(
   'webhook_endpoints',
   {
-    id: uuid('id').defaultRandom().primaryKey(),
-    env: envEnum('env').notNull().unique(),
+    id: serial('id').primaryKey(),
+    env: text('env').notNull(),
+    url: text('url').notNull(),
     secret: text('secret').notNull(),
-    isActive: boolean('is_active').notNull().default(true),
+    isActive: boolean('is_active').notNull().default(false),
     deliveryMode: text('delivery_mode').notNull().default('normal'),
     timeoutMs: integer('timeout_ms').notNull().default(15000),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
   }
 )
 
@@ -47,6 +49,8 @@ export const webhookDeliveries = pgTable(
     errorMessage: text('error_message'),
     modeUsed: text('mode_used'),
     latencyMs: integer('latency_ms'),
+    endpointId: integer('endpoint_id').references(() => webhookEndpoints.id),
+    endpointUrlSnapshot: text('endpoint_url_snapshot'),
     receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow()
   },
   (table) => ({
