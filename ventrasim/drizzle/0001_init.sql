@@ -1,7 +1,4 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-
-CREATE TYPE "ventra_env" AS ENUM ('local', 'sandbox', 'staging');
-
 CREATE TABLE IF NOT EXISTS "webhook_endpoints" (
   "id" serial PRIMARY KEY,
   "env" text NOT NULL,
