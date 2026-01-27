@@ -284,3 +284,5 @@ O Ventra + VentraSim existem para provar que:
 Este projeto foca exatamente nisso.
 
 ---
+<img width="427" height="958" alt="image" src="https://github.com/user-attachments/assets/7669f550-8708-4be9-92f8-969978944681" />
+
