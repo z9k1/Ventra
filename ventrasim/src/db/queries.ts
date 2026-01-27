@@ -85,17 +85,23 @@ export async function insertWebhookDelivery(args: {
   latencyMs?: number | null
   endpointId?: number | null
   endpointUrlSnapshot?: string | null
-}) {
-  await db.insert(webhookDeliveries).values({
-    eventId: args.eventId,
-    attemptNumber: args.attemptNumber,
-    status: args.status,
-    errorMessage: args.errorMessage ?? null,
-    modeUsed: args.modeUsed ?? null,
-    latencyMs: args.latencyMs ?? null,
-    endpointId: args.endpointId ?? null,
-    endpointUrlSnapshot: args.endpointUrlSnapshot ?? null
-  })
+}): Promise<{ id: string } | null> {
+  const rows = await db
+    .insert(webhookDeliveries)
+    .values({
+      eventId: args.eventId,
+      attemptNumber: args.attemptNumber,
+      status: args.status,
+      errorMessage: args.errorMessage ?? null,
+      modeUsed: args.modeUsed ?? null,
+      latencyMs: args.latencyMs ?? null,
+      endpointId: args.endpointId ?? null,
+      endpointUrlSnapshot: args.endpointUrlSnapshot ?? null
+    })
+    .returning({
+      id: webhookDeliveries.id
+    })
+  return rows[0] ?? null
 }
 
 export async function getWebhookEventByEventId(eventId: string) {
