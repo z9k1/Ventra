@@ -1,4 +1,14 @@
-CREATE TYPE "public"."ventra_env" AS ENUM('local', 'sandbox', 'staging');--> statement-breakpoint
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'ventra_env' AND n.nspname = 'public'
+  ) THEN
+    CREATE TYPE "public"."ventra_env" AS ENUM ('local', 'sandbox', 'staging');
+  END IF;
+END$$;
 CREATE TABLE "webhook_deliveries" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"event_id" text NOT NULL,
