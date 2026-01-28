@@ -165,6 +165,49 @@ Regras:
 
 ---
 
+## Configuração rápida (dev)
+
+### Ventra (backend)
+
+Valores básicos no `.env`:
+
+```
+API_KEY=dev-secret
+WEBHOOK_URL=http://localhost:3001/api/webhooks/ventra/sandbox
+WEBHOOK_SECRET=dev-webhook-secret
+VENTRASIM_BASE_URL=http://localhost:3001
+VENTRA_INTERNAL_TOKEN=dev-internal-token
+```
+
+### Ventra UI (frontend)
+
+O frontend envia `x-api-base-url` e `x-api-key` via `/api/proxy`.
+Agora existe rotação de API key:
+
+```
+POST /settings/api-key
+```
+
+- Requer autenticação com a **API key atual**.
+- A nova key fica salva em `.runtime/api_key.json` (apague o arquivo para voltar ao `.env`).
+
+### VentraSim (merchant simulator)
+
+Na tela `/events`, o bloco **Conexão com Ventra** salva localmente:
+
+- `x-api-base-url`
+- `x-api-key`
+
+Esses headers são enviados nas chamadas `/api/dev` (create/release/refund),
+garantindo que o VentraSim use a mesma chave configurada no Ventra.
+
+### Webhook secret (SIG OK)
+
+O secret salvo no endpoint do VentraSim precisa bater com o secret usado pelo Ventra
+(`WEBHOOK_SECRET` ou o secret resolvido via VentraSim). Caso contrário, aparece **SIG FAIL**.
+
+---
+
 ## Simulação de falhas de entrega
 
 O VentraSim permite simular comportamentos reais de rede:
