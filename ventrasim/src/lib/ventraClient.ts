@@ -1,18 +1,35 @@
 import { randomUUID } from 'crypto'
 
 const baseUrlEnv = process.env.VENTRA_API_BASE_URL?.trim()
-const apiKey = process.env.VENTRA_API_KEY?.trim()
+const apiKeyEnv = process.env.VENTRA_API_KEY?.trim()
 
-if (!baseUrlEnv) {
-  throw new Error('VENTRA_API_BASE_URL is not configured')
+export type VentraConnectionOverride = {
+  baseUrl?: string
+  apiKey?: string
 }
 
-if (!apiKey) {
-  throw new Error('VENTRA_API_KEY is not configured')
+type VentraConnection = {
+  baseUrl: string
+  apiKey: string
 }
 
-const resolveUrl = (path: string) => {
-  return new URL(path, baseUrlEnv).toString()
+function resolveConnection(override?: VentraConnectionOverride): VentraConnection {
+  const baseUrl = override?.baseUrl?.trim() || baseUrlEnv
+  const apiKey = override?.apiKey?.trim() || apiKeyEnv
+
+  if (!baseUrl) {
+    throw new Error('VENTRA_API_BASE_URL is not configured')
+  }
+
+  if (!apiKey) {
+    throw new Error('VENTRA_API_KEY is not configured')
+  }
+
+  return { baseUrl, apiKey }
+}
+
+const resolveUrl = (path: string, baseUrl: string) => {
+  return new URL(path, baseUrl).toString()
 }
 
 type HttpMethod = 'GET' | 'POST'
@@ -23,12 +40,17 @@ type RequestOptions = {
   idempotencyKey?: string
 }
 
-async function ventraRequest<T>(path: string, options: RequestOptions = {}) {
-  const url = resolveUrl(path)
+async function ventraRequest<T>(
+  path: string,
+  options: RequestOptions = {},
+  override?: VentraConnectionOverride
+) {
+  const connection = resolveConnection(override)
+  const url = resolveUrl(path, connection.baseUrl)
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Accept: 'application/json',
-    'X-API-KEY': apiKey
+    'X-API-KEY': connection.apiKey
   }
 
   if (options.idempotencyKey) {
@@ -83,7 +105,10 @@ export type CreateEscrowPayload = {
   charge: VentraCharge
 }
 
-export async function createEscrow(params: { amount_cents: number }) {
+export async function createEscrow(
+  params: { amount_cents: number },
+  override?: VentraConnectionOverride
+) {
   if (!Number.isFinite(params.amount_cents) || params.amount_cents <= 0) {
     throw new Error('amount_cents must be a positive number')
   }
@@ -95,30 +120,34 @@ export async function createEscrow(params: { amount_cents: number }) {
       currency: 'BRL'
     },
     idempotencyKey: `ventrasim-order-${randomUUID()}`
-  })
+  }, override)
 
   const charge = await ventraRequest<VentraCharge>(`/orders/${order.id}/charges/pix`, {
     method: 'POST',
     idempotencyKey: `ventrasim-charge-${randomUUID()}`
-  })
+  }, override)
 
   return { order, charge }
 }
 
-async function postOrderAction(orderId: string, action: 'release' | 'refund') {
+async function postOrderAction(
+  orderId: string,
+  action: 'release' | 'refund',
+  override?: VentraConnectionOverride
+) {
   if (!orderId) {
     throw new Error('orderId is required')
   }
   return ventraRequest(`/orders/${orderId}/${action}`, {
     method: 'POST',
     idempotencyKey: `ventrasim-${action}-${randomUUID()}`
-  })
+  }, override)
 }
 
-export async function releaseOrder(orderId: string) {
-  return postOrderAction(orderId, 'release')
+export async function releaseOrder(orderId: string, override?: VentraConnectionOverride) {
+  return postOrderAction(orderId, 'release', override)
 }
 
-export async function refundOrder(orderId: string) {
-  return postOrderAction(orderId, 'refund')
+export async function refundOrder(orderId: string, override?: VentraConnectionOverride) {
+  return postOrderAction(orderId, 'refund', override)
 }

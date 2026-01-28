@@ -5,6 +5,7 @@ import { desc, eq, sql } from 'drizzle-orm'
 import EventsListClient from './EventsListClient'
 import FailureModeToggle from './FailureModeToggle'
 import IntegrationPanel from './IntegrationPanel'
+import VentraConnectionCard from './VentraConnectionCard'
 
 export default async function EventsPage({
   searchParams,
@@ -50,6 +51,7 @@ export default async function EventsPage({
         <p className="text-zinc-500 mt-1">Simulação de recebimento e latência do Ventra</p>
       </header>
 
+      <VentraConnectionCard />
       <IntegrationPanel initialOrderFilter={orderFilter || undefined} />
 
       <div className="mb-6 text-sm text-zinc-500">

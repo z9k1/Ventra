@@ -3,6 +3,8 @@
 import { FormEvent, useEffect, useState, useTransition } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
+import { buildVentraHeaders, loadVentraSettings } from '@/lib/ventraSettings'
+
 type IntegrationPanelProps = {
   initialOrderFilter?: string
 }
@@ -81,9 +83,10 @@ export default function IntegrationPanel({ initialOrderFilter }: IntegrationPane
 
     setLoading(true)
     try {
+      const ventraHeaders = buildVentraHeaders(loadVentraSettings())
       const response = await fetch('/api/dev/orders/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...ventraHeaders },
         body: JSON.stringify({ amount: parsed })
       })
 

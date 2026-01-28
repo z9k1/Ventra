@@ -32,9 +32,39 @@ export default function SettingsClient() {
     form.reset(loadSettings())
   }, [form])
 
-  const onSubmit = (data: FormData) => {
-    saveSettings({ apiBaseUrl: data.apiBaseUrl, apiKey: data.apiKey })
-    toast({ title: 'Salvo', description: 'Configuracoes atualizadas.', variant: 'success' })
+  const onSubmit = async (data: FormData) => {
+    try {
+      const previous = loadSettings()
+      const nextSettings = { apiBaseUrl: data.apiBaseUrl.trim(), apiKey: data.apiKey.trim() }
+      const apiKeyChanged = previous.apiKey && previous.apiKey !== nextSettings.apiKey
+      const sameBaseUrl = previous.apiBaseUrl === nextSettings.apiBaseUrl
+
+      if (apiKeyChanged && sameBaseUrl) {
+        const response = await fetch('/api/proxy/settings/api-key', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-base-url': previous.apiBaseUrl,
+            'x-api-key': previous.apiKey
+          },
+          body: JSON.stringify({ api_key: nextSettings.apiKey })
+        })
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null)
+          const detail = (payload as any)?.detail ?? (payload as any)?.error
+          const message = detail || 'Falha ao atualizar a API key no backend.'
+          toast({ title: 'Erro', description: message, variant: 'destructive' })
+          return
+        }
+      }
+
+      saveSettings(nextSettings)
+      toast({ title: 'Salvo', description: 'Configuracoes atualizadas.', variant: 'success' })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Falha ao salvar configuracoes'
+      toast({ title: 'Erro', description: message, variant: 'destructive' })
+    }
   }
 
   const testConnection = async () => {

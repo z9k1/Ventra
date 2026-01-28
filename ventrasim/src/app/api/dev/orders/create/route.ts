@@ -21,6 +21,10 @@ function parseAmount(value: unknown): number | null {
 }
 
 export async function POST(request: NextRequest) {
+  const baseUrl = request.headers.get('x-api-base-url')?.trim() || undefined
+  const apiKey = request.headers.get('x-api-key')?.trim() || undefined
+  const override = baseUrl || apiKey ? { baseUrl, apiKey } : undefined
+
   let body: { amount?: unknown } = {}
   try {
     body = await request.json()
@@ -34,7 +38,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const payload = await createEscrow({ amount_cents: Math.round(amount * 100) })
+    const payload = await createEscrow({ amount_cents: Math.round(amount * 100) }, override)
     await upsertOrder({
       env: DEFAULT_ORDER_ENV,
       orderId: payload.order.id,

@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 
+import { buildVentraHeaders, loadVentraSettings } from '@/lib/ventraSettings'
+
 const ACTION_LABELS: Record<'release' | 'refund', string> = {
   release: 'Release funds',
   refund: 'Refund customer'
@@ -22,8 +24,10 @@ export default function OrderActions({ orderId }: OrderActionsProps) {
     setActiveAction(action)
 
     try {
+      const ventraHeaders = buildVentraHeaders(loadVentraSettings())
       const response = await fetch(`/api/dev/orders/${orderId}/${action}`, {
-        method: 'POST'
+        method: 'POST',
+        headers: ventraHeaders
       })
       const payload = await response.json().catch(() => null)
       if (!response.ok) {

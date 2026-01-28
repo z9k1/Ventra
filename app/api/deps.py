@@ -9,11 +9,11 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.domain.errors import IdempotencyConflictError
 from app.repos import idempotency_repo
-from app.settings import settings
+from app.runtime_settings import get_api_key
 
 
 def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
-    if not x_api_key or x_api_key != settings.api_key:
+    if not x_api_key or x_api_key != get_api_key():
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
